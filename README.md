@@ -1,3 +1,5 @@
+# change-env
+
 This package provides a way to modify LaTeX environments, as well as the
 display math mode (seeing it as an environment of sorts).  Thus,
 henceforth the world "environment" shall—in addition to
