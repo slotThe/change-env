@@ -193,18 +193,23 @@ also act on display math environments."
                (in-display (equal math-sym (car change-env-display)))
                (env-beg (ignore-errors (save-excursion (LaTeX-find-matching-begin)
                                                        (point)))))
-    (cond ((and math-beg env-beg)
-           (if (>= env-beg math-beg)    ; prefer inner
-               (cons math-sym env-beg)
-             (unless in-display (error "Not in a display math environment"))
-             `(math . ,math-beg)))
-          (env-beg
-           `(no-math-env . ,env-beg))
-          (math-beg
-           (unless in-display (error "Not in a display math environment"))
-           `(math . ,math-beg))
-          (t
-           (error "Not in any environment")))))
+    (cond
+     ;; Possibly fancy math environment.
+     ((and math-beg env-beg)
+      (if (>= env-beg math-beg)         ; prefer inner
+          (cons math-sym env-beg)
+        (unless in-display
+          (error "Not in a display math environment"))
+        `(math . ,math-beg)))
+     ;; Other non-math environment.
+     (env-beg (goto-char env-beg)
+              (search-forward "{" (point-at-eol))
+              (cons (current-word) env-beg))
+     ;; Display math.
+     (math-beg (unless in-display
+                 (error "Not in a display math environment"))
+               `(math . ,math-beg))
+     (t (error "Not in any environment")))))
 
 (defun change-env--delete-line ()
   "Delete the current line."
