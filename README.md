@@ -34,9 +34,9 @@ the `change-env-options` variable.  By default, the possible options are
   - Convert the current environment to display math.
 
 Note that, while the second option could be implemented to incorporate
-the third option as well, it is consciously not.  The goal is to make
-switching to display math as prominent as possible.  This fits quite
-well with the authors particular sensibilities.
+the third option as well, it was a conscious decision not to do that.
+The goal is to make switching to display math as prominent as possible.
+This fits quite well with the authors particular sensibilities.
 
 What exactly we mean by "display math" is controlled by the
 `change-env-display` variable.  By default, it is set to `\[...\]` style
@@ -53,3 +53,33 @@ This package is not compatible with plain tex, as it depends on
 AUCTeX—but you are already using that anyways.
 
 [`math-delimiters` package]: https://github.com/oantolin/math-delimiters
+
+## Labels
+
+There is primitive label handling incorporated in `change-env`; this is
+controlled by the `change-env-labels` variable.  It is an alist,
+containing environment names with their associated label prefix.  If an
+environment is switched to another one and both are present in the
+alist, the label will be renamed according to that scheme.  For
+example—using the default value of `change-env-labels`—switching from an
+`equation` environment to a `lemma`:
+
+``` tex
+% BEFORE
+\begin{equation} \label{eq:test}
+  hi!
+\end{equation}
+
+% AFTER
+\begin{lemma} \label{lem:test}
+  hi!
+\end{lemma}
+```
+
+We also automatically remove the label when switching to display math or
+any of the `*`-type environments (`equation*`, `align*`, and the like).
+
++ TODO:
+  + Remember labels (at least for the current session).
+  + When we change a label like this, offer to rename it across the
+    whole project.
