@@ -105,10 +105,8 @@ Takes a list of three items; namely,
 (defcustom change-env-display '("\\[" . "\\]")
   "Set the preferred display math style."
   :group 'change-env
-  :type '(choice
-          (const :tag "Brackets" ("\\[" . "\\]"))
-          (const :tag "Dollars"  ("$$"  . "$$"))
-          (cons  :tag "Other"    string string)))
+  :type '(choice (const :tag "Brackets" ("\\[" . "\\]"))
+                 (const :tag "Dollars"  ("$$"  . "$$"))))
 
 ;;;###autoload
 (defun change-env ()
