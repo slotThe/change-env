@@ -108,6 +108,18 @@ Takes a list of three items; namely,
   :type '(choice (const :tag "Brackets" ("\\[" . "\\]"))
                  (const :tag "Dollars"  ("$$"  . "$$"))))
 
+(defcustom change-env-labels '(("remark"     . "rem:")
+                               ("definition" . "def:")
+                               ("lemma"      . "lem:")
+                               ("theorem"    . "thm:")
+                               ("equation"   . "eq:" )
+                               ("corollary"  . "cor:"))
+  "Label prefixes with their associated environments."
+  :group 'change-env
+  :type '(repeat (cons
+                  (string :tag "Environment")
+                  (string :tag "Label prefix"))))
+
 ;;;###autoload
 (defun change-env ()
   "Change a LaTeX environment.
@@ -164,6 +176,24 @@ delimiters, as indicated by the optional arguments BEG and END."
   (change-env--change (car change-env-display)
                       (cdr change-env-display)))
 
+(defun change-env--change-label (old-env new-env)
+  "Change the label (prefix) of an environment."
+  (LaTeX-find-matching-begin)
+  (let ((orig-point (point))
+        (old-lbl (alist-get old-env change-env-labels nil nil 'string=))
+        (new-lbl (alist-get new-env change-env-labels nil nil 'string=)))
+    (cond
+     ((s-ends-with? "*" new-env)
+      (search-forward "}")
+      (delete-region (point) (point-at-eol)))
+     ((and old-lbl new-lbl
+           (not (equal orig-point
+                       (progn (search-forward "\\label" (point-at-eol) t)
+                              (point)))))
+      (forward-char)
+      (delete-char (length old-lbl))
+      (insert new-lbl)))))
+
 (defun change-env--modify ()
   "Modify a LaTeX environment.
 Most of the implementation stolen from `LaTeX-environment', just
@@ -173,19 +203,21 @@ also act on display math environments."
                               (string-equal (LaTeX-current-environment) "document"))
                          LaTeX-default-document-environment)
                         (t LaTeX-default-environment)))
-         (environment (completing-read (concat "Environment type (default " default "): ")
-                                       (LaTeX-environment-list-filtered) nil nil
-                                       nil 'LaTeX-environment-history default)))
-    (unless (equal environment default)
-      (setq LaTeX-default-environment environment))
-    (let ((entry (assoc environment (LaTeX-environment-list)))
-          (env (car (change-env--closest-env))))
+         (new-env (completing-read (concat "Environment type (default " default "): ")
+                                   (LaTeX-environment-list-filtered) nil nil
+                                   nil 'LaTeX-environment-history default)))
+    (unless (equal new-env default)
+      (setq LaTeX-default-environment new-env))
+    (let ((entry (assoc new-env (LaTeX-environment-list)))
+          (old-env (car (change-env--closest-env))))
       (when (null entry)
-        (LaTeX-add-environments (list environment)))
-      (if (equal env 'math)             ; in a display math environment
-          (change-env--change (concat "\\begin{" environment "}")
-                              (concat "\\end{" environment "}"))
-        (LaTeX-modify-environment environment)))))
+        (LaTeX-add-environments (list new-env)))
+      (save-mark-and-excursion
+        (if (equal old-env 'math)         ; in a display math environment
+            (change-env--change (concat "\\begin{" new-env "}")
+                                (concat "\\end{"   new-env "}"))
+          (LaTeX-modify-environment new-env)
+          (change-env--change-label old-env new-env))))))
 
 (defun change-env--closest-env ()
   "Find the starting position of the closest environment."
