@@ -131,31 +131,31 @@ specified by `change-env-options'."
 Delete the old one, and possibly insert new beginning and end
 delimiters, as indicated by the optional arguments BEG and END."
   (cl-flet* ((delete-env (env-begin find-end open-end close-beg)
-                         ;; delete beginning, possibly insert a new one
-                         (goto-char env-begin)
-                         (if (not beg)
-                             (change-env--delete-line)
-                           (delete-region (point) (funcall open-end))
-                           (insert beg))
-                         ;; delete end, possibly insert a new one
-                         (funcall find-end)
-                         (if (not end)
-                             (change-env--delete-line)
-                           (delete-region (funcall close-beg) (point))
-                           (insert end))))
+               ;; delete beginning, possibly insert a new one
+               (goto-char env-begin)
+               (if (not beg)
+                   (change-env--delete-line)
+                 (delete-region (point) (funcall open-end))
+                 (insert beg))
+               ;; delete end, possibly insert a new one
+               (funcall find-end)
+               (if (not end)
+                   (change-env--delete-line)
+                 (delete-region (funcall close-beg) (point))
+                 (insert end))))
     (save-mark-and-excursion
       (push-mark)
       (pcase-let ((`(,env . ,beg) (change-env--closest-env))
                   (`(,open . ,close) change-env-display))
-        (if (equal env 'be-env)      ; \begin and \end style environment
+        (if (equal env 'math)           ; display math
             (delete-env beg
-                        #'LaTeX-find-matching-end
-                        #'(lambda () (save-excursion (end-of-line) (point)))
-                        #'(lambda () (save-excursion (back-to-indentation) (point))))
-          (delete-env beg               ; delete display maths
-                      #'(lambda () (search-forward close))
-                      #'(lambda () (+ (point) (length open)))
-                      #'(lambda () (- (point) (length close))))))
+                        #'(lambda () (search-forward close))
+                        #'(lambda () (+ (point) (length open)))
+                        #'(lambda () (- (point) (length close))))
+          (delete-env beg
+                      #'LaTeX-find-matching-end
+                      #'(lambda () (save-excursion (end-of-line) (point)))
+                      #'(lambda () (save-excursion (back-to-indentation) (point))))))
       (setq mark-active t)
       (indent-region (mark) (point)))))
 
@@ -195,11 +195,11 @@ also act on display math environments."
                                                        (point)))))
     (cond ((and math-beg env-beg)
            (if (>= env-beg math-beg)    ; prefer inner
-               `(be-env . ,env-beg)
+               (cons math-sym env-beg)
              (unless in-display (error "Not in a display math environment"))
              `(math . ,math-beg)))
           (env-beg
-           `(be-env . ,env-beg))
+           `(no-math-env . ,env-beg))
           (math-beg
            (unless in-display (error "Not in a display math environment"))
            `(math . ,math-beg))
