@@ -202,14 +202,15 @@ delimiters, as indicated by the optional arguments BEG and END."
   (change-env-find-matching-begin)
   (let ((orig-point (point))
         (old-lbl (alist-get old-env change-env-labels nil nil 'string=))
-        (new-lbl (alist-get new-env change-env-labels nil nil 'string=)))
+        (new-lbl (alist-get new-env change-env-labels nil nil 'string=))
+        (eonl    (lambda () (save-excursion (forward-line) (point-at-eol)))))
     (cond
      ((s-ends-with? "*" new-env)
       (search-forward "}")
       (delete-region (point) (point-at-eol)))
      ((and old-lbl new-lbl
            (not (equal orig-point
-                       (progn (search-forward "\\label" (point-at-eol) t)
+                       (progn (search-forward "\\label" (funcall eonl) t)
                               (point)))))
       (forward-char)
       (delete-char (length old-lbl))
