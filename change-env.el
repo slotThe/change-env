@@ -1,8 +1,8 @@
 ;;; change-env.el --- Change in and out of LaTeX environments -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2021  Solid
+;; Copyright (C) 2021, 2022  Tony Zorman
 ;;
-;; Author: Solid <soliditsallgood@mailbox.org>
+;; Author: Tony Zorman <soliditsallgood@mailbox.org>
 ;; Keywords: convenience, tex
 ;; Version: 0.1
 ;; Package-Requires: ((emacs "25.1"))
