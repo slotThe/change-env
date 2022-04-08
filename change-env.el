@@ -138,6 +138,27 @@ specified by `change-env-options'."
              change-env-options
              " "))
 
+(defun change-env-find-matching-begin ()
+  "Find the beginning of the current environment.
+Like `LaTeX-find-matching-begin', but take care of corner cases
+like being at the very beginning/end of the current environment."
+  (change-env--find-match 'LaTeX-find-matching-begin))
+
+(defun change-env-find-matching-end ()
+  "Find the end of the current environment.
+Like `LaTeX-find-matching-end', but take care of corner cases
+like being at the very beginning/end of the current environment."
+  (change-env--find-match 'LaTeX-find-matching-end))
+
+(defun change-env--find-match (find-match)
+  "Find match according to FIND-MATCH.
+See `change-env-find-matching-begin' and
+`change-env-find-matching-end' for documentation."
+  (let ((boi (save-excursion (LaTeX-back-to-indentation) (point))))
+    (cond ((equal (point) boi) (forward-char))
+          ((point-at-eol)      (backward-char)))
+    (funcall find-match)))
+
 (defun change-env--change (&optional beg end)
   "Change an environment.
 Delete the old one, and possibly insert new beginning and end
@@ -165,7 +186,7 @@ delimiters, as indicated by the optional arguments BEG and END."
                         #'(lambda () (+ (point) (length open)))
                         #'(lambda () (- (point) (length close))))
           (delete-env beg
-                      #'LaTeX-find-matching-end
+                      #'change-env-find-matching-end
                       #'(lambda () (save-excursion (end-of-line) (point)))
                       #'(lambda () (save-excursion (back-to-indentation) (point))))))
       (setq mark-active t)
@@ -177,8 +198,8 @@ delimiters, as indicated by the optional arguments BEG and END."
                       (cdr change-env-display)))
 
 (defun change-env--change-label (old-env new-env)
-  "Change the label (prefix) of an environment."
-  (LaTeX-find-matching-begin)
+  "Change the label for OLD-ENV to the one for NEW-ENV."
+  (change-env-find-matching-begin)
   (let ((orig-point (point))
         (old-lbl (alist-get old-env change-env-labels nil nil 'string=))
         (new-lbl (alist-get new-env change-env-labels nil nil 'string=)))
@@ -223,7 +244,7 @@ also act on display math environments."
   "Find the starting position of the closest environment."
   (pcase-let* ((`(,math-sym . ,math-beg) (and (texmathp) texmathp-why))
                (in-display (equal math-sym (car change-env-display)))
-               (env-beg (ignore-errors (save-excursion (LaTeX-find-matching-begin)
+               (env-beg (ignore-errors (save-excursion (change-env-find-matching-begin)
                                                        (point)))))
     (cond
      ;; Possibly fancy math environment.
