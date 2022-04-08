@@ -176,26 +176,26 @@ delimiters, as indicated by the optional arguments BEG and END."
                    (change-env--delete-line)
                  (delete-region (funcall close-beg) (point))
                  (insert end))))
-    (save-mark-and-excursion
-      (push-mark)
-      (pcase-let ((`(,env . ,beg) (change-env--closest-env))
-                  (`(,open . ,close) change-env-display))
-        (if (equal env 'math)           ; display math
-            (delete-env beg
-                        #'(lambda () (search-forward close))
-                        #'(lambda () (+ (point) (length open)))
-                        #'(lambda () (- (point) (length close))))
+    (push-mark)
+    (pcase-let ((`(,env . ,beg) (change-env--closest-env))
+                (`(,open . ,close) change-env-display))
+      (if (equal env 'math)             ; display math
           (delete-env beg
-                      #'change-env-find-matching-end
-                      #'(lambda () (save-excursion (end-of-line) (point)))
-                      #'(lambda () (save-excursion (back-to-indentation) (point))))))
-      (setq mark-active t)
-      (indent-region (mark) (point)))))
+                      #'(lambda () (search-forward close))
+                      #'(lambda () (+ (point) (length open)))
+                      #'(lambda () (- (point) (length close))))
+        (delete-env beg
+                    #'change-env-find-matching-end
+                    #'(lambda () (save-excursion (end-of-line) (point)))
+                    #'(lambda () (save-excursion (back-to-indentation) (point))))))
+    (setq mark-active t)
+    (indent-region (mark) (point))))
 
 (defun change-env--to-display-math ()
   "Transform an environment to display math."
-  (change-env--change (car change-env-display)
-                      (cdr change-env-display)))
+  (save-mark-and-excursion
+    (change-env--change (car change-env-display)
+                        (cdr change-env-display))))
 
 (defun change-env--change-label (old-env new-env)
   "Change the label for OLD-ENV to the one for NEW-ENV."
