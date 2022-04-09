@@ -85,6 +85,7 @@ environment that does not have an associated label in
 does, the label will be restored _if the contents of the environment
 didn't change_.
 
-+ TODO:
-  + When we change a label like this, offer to rename it across the
-    whole project.
+Lastly, when a label changes and the user has customised
+`change-env-edit-project-labels` to `t` then an interactive
+`query-replace` session is started in the current project to replace any
+labels with their potentially updated version.
