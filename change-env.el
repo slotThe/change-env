@@ -5,7 +5,7 @@
 ;; Author: Tony Zorman <soliditsallgood@mailbox.org>
 ;; Keywords: convenience, tex
 ;; Version: 0.1
-;; Package-Requires: ((emacs "25.1"))
+;; Package-Requires: ((emacs "27.1"))
 ;; Homepage: https://gitlab.com/slotThe/change-env
 ;;
 ;; This file is NOT part of GNU Emacs.
