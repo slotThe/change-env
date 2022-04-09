@@ -79,7 +79,12 @@ example—using the default value of `change-env-labels`—switching from an
 We also automatically remove the label when switching to display math or
 any of the `*`-type environments (`equation*`, `align*`, and the like).
 
+Further, if one deletes a label by switching to display math or an
+environment that does not have an associated label in
+`change-env-labels`, and later switches back to an environment that
+does, the label will be restored _if the contents of the environment
+didn't change_.
+
 + TODO:
-  + Remember labels (at least for the current session).
   + When we change a label like this, offer to rename it across the
     whole project.
