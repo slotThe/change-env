@@ -89,6 +89,15 @@ Takes a list of three items; namely,
                   (string :tag "Environment")
                   (string :tag "Label prefix"))))
 
+(defcustom change-env-edit-project-labels nil
+  "Whether to change labels after an edit."
+  :group 'change-env
+  :type 'boolean
+  :initialize #'(lambda (symbol exp)
+                  (when exp
+                    (require 'project))
+                  (custom-initialize-default symbol exp)))
+
 (defvar change-env--deleted-labels (make-hash-table)
   "Environments that used to have labels.
 Associated to each is the respective content of the latter.")
@@ -221,21 +230,28 @@ If NEW-ENV is not given, delete (and save) the label instead."
                                  t)
                  (not (eql orig-point (point))))
                (get-label-text ()
-                 (forward-char (length old-lbl))
-                 (push-mark)
-                 (search-forward "}")
-                 (backward-char)
-                 (buffer-substring-no-properties (mark) (point))))
+                 (save-excursion
+                   (forward-char (length old-lbl))
+                   (push-mark)
+                   (search-forward "}")
+                   (backward-char)
+                   (buffer-substring-no-properties (mark) (point))))
+               (replace-label (old new)
+                 (when change-env-edit-project-labels
+                   (project-query-replace-regexp old new))))
       (if (goto-label?)
-          (if (and old-lbl new-lbl)     ; replace old label with new one
-              (progn
-                (delete-char (length old-lbl))
-                (insert new-lbl))
-            ;; Only the old label exists: delete and save it.
-            (puthash (change-env--env->hash) ; key
-                     (save-excursion (get-label-text)) ; val
-                     change-env--deleted-labels)
-            (delete-region (- (point) (length "\\label{")) (point-at-eol)))
+          (let ((label (get-label-text)))
+            (if (and old-lbl new-lbl)   ; replace old label with new one
+                (progn
+                  (delete-char (length old-lbl))
+                  (insert new-lbl)
+                  (replace-label (concat old-lbl label) (concat new-lbl label)))
+              ;; Only the old label exists: delete and save it.
+              (puthash (change-env--env->hash) ; key
+                       (get-label-text)        ; val
+                       change-env--deleted-labels)
+              (delete-region (- (point) (length "\\label{")) (point-at-eol))
+              (replace-label (concat "\\\\ref{" old-lbl label "}") "")))
         ;; No label found -> check if we can restore something.
         (let ((label (gethash (change-env--env->hash) change-env--deleted-labels)))
           (when (and new-lbl label)
@@ -262,7 +278,7 @@ also act on display math environments."
       (when (null entry)
         (LaTeX-add-environments (list new-env)))
       (save-mark-and-excursion
-        (if (equal old-env 'math)         ; in a display math environment
+        (if (equal old-env 'math)       ; in a display math environment
             (change-env--change (concat "\\begin{" new-env "}")
                                 (concat "\\end{"   new-env "}"))
           (LaTeX-modify-environment new-env))
