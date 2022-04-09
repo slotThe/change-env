@@ -89,6 +89,14 @@ Takes a list of three items; namely,
                   (string :tag "Environment")
                   (string :tag "Label prefix"))))
 
+(defvar change-env--deleted-labels (make-hash-table)
+  "Environments that used to have labels.
+Associated to each is the respective content of the latter.")
+
+(defun change-env--get-labels (env)
+  "Return the label prefix for ENV."
+  (alist-get env change-env-labels nil nil 'string=))
+
 ;;;###autoload
 (defun change-env ()
   "Change a LaTeX environment.
@@ -128,6 +136,39 @@ See `change-env-find-matching-begin' and
           ((point-at-eol)      (backward-char)))
     (funcall find-match)))
 
+(defun change-env--env->hash ()
+  "Get the hash of the contents in the current environment.
+Before hashing, strip all non essential characters (i.e.,
+whitespace) from the string."
+  (cl-flet* ((get-env (goto-beg goto-end)
+               (funcall goto-beg)
+               (push-mark)
+               (funcall goto-end)
+               (replace-regexp-in-string
+                "[ \t\n\r]+"
+                ""
+                (buffer-substring-no-properties (mark) (point)))))
+    (save-excursion
+      (pcase-let ((`(,env . ,beg) (change-env--closest-env))
+                  (`(,open . ,close) change-env-display))
+        (sxhash
+         (if (equal env 'math)
+             ;; Display math
+             (get-env #'(lambda ()
+                          (goto-char beg)
+                          (forward-char (length open)))
+                      #'(lambda ()
+                          (search-forward close)
+                          (backward-char (length close))))
+           ;; Proper environment
+           (get-env #'(lambda ()
+                        (change-env-find-matching-begin)
+                        (forward-line))
+                    #'(lambda ()
+                        (change-env-find-matching-end)
+                        (forward-line -1)
+                        (end-of-line)))))))))
+
 (defun change-env--change (&optional beg end)
   "Change an environment.
 Delete the old one, and possibly insert new beginning and end
@@ -163,27 +204,44 @@ delimiters, as indicated by the optional arguments BEG and END."
 (defun change-env--to-display-math ()
   "Transform an environment to display math."
   (save-mark-and-excursion
+    (change-env--change-label (car (change-env--closest-env)))
     (change-env--change (car change-env-display)
                         (cdr change-env-display))))
 
-(defun change-env--change-label (old-env new-env)
-  "Change the label for OLD-ENV to the one for NEW-ENV."
+(defun change-env--change-label (old-env &optional new-env)
+  "Change the label for OLD-ENV to the one for NEW-ENV.
+If NEW-ENV is not given, delete (and save) the label instead."
   (change-env-find-matching-begin)
-  (let ((orig-point (point))
-        (old-lbl (alist-get old-env change-env-labels nil nil 'string=))
-        (new-lbl (alist-get new-env change-env-labels nil nil 'string=))
-        (eonl    (lambda () (save-excursion (forward-line) (point-at-eol)))))
-    (cond
-     ((s-ends-with? "*" new-env)
-      (search-forward "}")
-      (delete-region (point) (point-at-eol)))
-     ((and old-lbl new-lbl
-           (not (equal orig-point
-                       (progn (search-forward "\\label" (funcall eonl) t)
-                              (point)))))
-      (forward-char)
-      (delete-char (length old-lbl))
-      (insert new-lbl)))))
+  (let* ((orig-point (point))
+         (old-lbl (change-env--get-labels old-env))
+         (new-lbl (change-env--get-labels new-env)))
+    (cl-flet* ((goto-label? ()
+                 (search-forward "\\label{"
+                                 (save-excursion (forward-line) (point-at-eol))
+                                 t)
+                 (not (eql orig-point (point))))
+               (get-label-text ()
+                 (forward-char (length old-lbl))
+                 (push-mark)
+                 (search-forward "}")
+                 (backward-char)
+                 (buffer-substring-no-properties (mark) (point))))
+      (if (goto-label?)
+          (if (and old-lbl new-lbl)     ; replace old label with new one
+              (progn
+                (delete-char (length old-lbl))
+                (insert new-lbl))
+            ;; Only the old label exists: delete and save it.
+            (puthash (change-env--env->hash) ; key
+                     (save-excursion (get-label-text)) ; val
+                     change-env--deleted-labels)
+            (delete-region (- (point) (length "\\label{")) (point-at-eol)))
+        ;; No label found -> check if we can restore something.
+        (let ((label (gethash (change-env--env->hash) change-env--deleted-labels)))
+          (when (and new-lbl label)
+            (change-env-find-matching-begin)
+            (end-of-line)
+            (insert (concat " \\label{" new-lbl label "}"))))))))
 
 (defun change-env--modify ()
   "Modify a LaTeX environment.
@@ -207,8 +265,8 @@ also act on display math environments."
         (if (equal old-env 'math)         ; in a display math environment
             (change-env--change (concat "\\begin{" new-env "}")
                                 (concat "\\end{"   new-env "}"))
-          (LaTeX-modify-environment new-env)
-          (change-env--change-label old-env new-env))))))
+          (LaTeX-modify-environment new-env))
+        (change-env--change-label old-env new-env)))))
 
 (defun change-env--closest-env ()
   "Find the starting position of the closest environment."
