@@ -248,7 +248,8 @@ If NEW-ENV is not given, delete (and save) the label instead."
                    (buffer-substring-no-properties (mark) (point))))
                (replace-label (old new)
                  (when change-env-edit-labels-in-project
-                   (project-query-replace-regexp old new))))
+                   (ignore-errors       ; stop beeping!
+                     (project-query-replace-regexp old new)))))
       (if (goto-label?)
           (let ((label (get-label-text)))
             (if (and old-lbl new-lbl)
