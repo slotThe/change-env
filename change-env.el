@@ -125,12 +125,6 @@ Associated to each is the respective content of the latter.")
 
 ;;;; Utility
 
-(defun change-env--delete-line ()
-  "Delete the current line."
-  (delete-region (progn (beginning-of-line) (point))
-                 (progn (forward-line 1)    (point))))
-
-
 (defun change-env--prompt ()
   "How to prompt the user for options."
   (mapconcat (pcase-lambda (`(,key ,label _))
@@ -280,23 +274,19 @@ If NEW-ENV is not given, delete (and save) the label instead."
     (change-env--change (car change-env-math-display)
                         (cdr change-env-math-display))))
 
-(defun change-env--change (&optional beg end)
+(defun change-env--change (beg end)
   "Change an environment.
 Delete the old one, and possibly insert new beginning and end
 delimiters, as indicated by the optional arguments BEG and END."
   (cl-flet* ((delete-env (env-begin find-end open-end close-beg)
                ;; delete beginning, possibly insert a new one
                (goto-char env-begin)
-               (if (not beg)
-                   (change-env--delete-line)
-                 (delete-region (point) (funcall open-end))
-                 (insert beg))
+               (delete-region (point) (funcall open-end))
+               (insert beg)
                ;; delete end, possibly insert a new one
                (funcall find-end)
-               (if (not end)
-                   (change-env--delete-line)
-                 (delete-region (funcall close-beg) (point))
-                 (insert end))))
+               (delete-region (funcall close-beg) (point))
+               (insert end)))
     (push-mark)
     (pcase-let ((`(,env . ,beg) (change-env--closest-env))
                 (`(,open . ,close) change-env-math-display))
