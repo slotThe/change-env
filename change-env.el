@@ -47,12 +47,12 @@
 ;;   associated label prefix in `change-env-labels'.
 ;;
 ;; + What exactly we mean by "display math" is controlled by the
-;;   `change-env-display' variable.
+;;   `change-env-math-display' variable.
 ;;
 ;; + This package depends on AUCTeX—but you are already using that
 ;;   anyways.
 ;;
-;; + If you're customizing `change-env-edit-project-labels', we also
+;; + If you're customizing `change-env-edit-labels-in-project', we also
 ;;   depend on project.el, meaning Emacs 27.1 and up.
 
 ;;; Code:
@@ -81,8 +81,8 @@ Takes a list of three items; namely,
                   (string    :tag "Label")
                   (symbol    :tag "Command"))))
 
-(defcustom change-env-display '("\\[" . "\\]")
-  "Set the preferred display math style."
+(defcustom change-env-math-display '("\\[" . "\\]")
+  "Set the preferred style for display math."
   :group 'change-env
   :type '(choice (const :tag "Brackets" ("\\[" . "\\]"))
                  (const :tag "Dollars"  ("$$"  . "$$"))))
@@ -93,14 +93,21 @@ Takes a list of three items; namely,
                                ("theorem"    . "thm:")
                                ("equation"   . "eq:" )
                                ("corollary"  . "cor:"))
-  "Label prefixes with their associated environments."
+  "Environments with their associated label prefixes.
+Given a cons cell (ENV . PRFX), the environment ENV should have
+an optional label \\label{PRFXname}, where name is the actual
+name of the environment."
   :group 'change-env
   :type '(repeat (cons
                   (string :tag "Environment")
                   (string :tag "Label prefix"))))
 
-(defcustom change-env-edit-project-labels nil
-  "Whether to change labels after an edit."
+(defcustom change-env-edit-labels-in-project nil
+  "Whether to change labels after an edit.
+If this is customised to 't', whenever a label changes or is
+deleted, an interactive `project-query-replace-regexp' session is
+started to (potentially) update the label name across the whole
+project."
   :group 'change-env
   :type 'boolean
   :initialize #'(lambda (symbol exp)
@@ -159,7 +166,7 @@ See `change-env--find-matching-begin' and
 (defun change-env--closest-env ()
   "Find the starting position of the closest environment."
   (pcase-let* ((`(,math-sym . ,math-beg) (and (texmathp) texmathp-why))
-               (in-display (equal math-sym (car change-env-display)))
+               (in-display (equal math-sym (car change-env-math-display)))
                (env-beg (ignore-errors (save-excursion (change-env--find-matching-begin)
                                                        (point)))))
     (cond
@@ -196,7 +203,7 @@ whitespace) from the string."
                 (buffer-substring-no-properties (mark) (point)))))
     (save-excursion
       (pcase-let ((`(,env . ,beg) (change-env--closest-env))
-                  (`(,open . ,close) change-env-display))
+                  (`(,open . ,close) change-env-math-display))
         (sxhash
          (if (equal env 'math)
              ;; Display math
@@ -235,7 +242,7 @@ If NEW-ENV is not given, delete (and save) the label instead."
                    (backward-char)
                    (buffer-substring-no-properties (mark) (point))))
                (replace-label (old new)
-                 (when change-env-edit-project-labels
+                 (when change-env-edit-labels-in-project
                    (project-query-replace-regexp old new))))
       (if (goto-label?)
           (let ((label (get-label-text)))
@@ -263,8 +270,8 @@ If NEW-ENV is not given, delete (and save) the label instead."
   "Transform an environment to display math."
   (save-mark-and-excursion
     (change-env--change-label (car (change-env--closest-env)))
-    (change-env--change (car change-env-display)
-                        (cdr change-env-display))))
+    (change-env--change (car change-env-math-display)
+                        (cdr change-env-math-display))))
 
 (defun change-env--change (&optional beg end)
   "Change an environment.
@@ -285,7 +292,7 @@ delimiters, as indicated by the optional arguments BEG and END."
                  (insert end))))
     (push-mark)
     (pcase-let ((`(,env . ,beg) (change-env--closest-env))
-                (`(,open . ,close) change-env-display))
+                (`(,open . ,close) change-env-math-display))
       (if (equal env 'math)             ; display math
           (delete-env beg
                       #'(lambda () (search-forward close))
