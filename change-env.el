@@ -164,11 +164,16 @@ See `change-env--find-matching-begin' and
     (funcall find-match)))
 
 (defun change-env--closest-env ()
-  "Find the starting position of the closest environment."
+  "Find the starting position of the closest environment.
+Returns a cons cell of the form (:math . BEG) or (ENV . BEG),
+:math is a keyword indicating math-mode, BEG is the starting
+position of the environment, and ENV is the name of a non display
+math environment."
   (pcase-let* ((`(,math-sym . ,math-beg) (and (texmathp) texmathp-why))
                (in-display (equal math-sym (car change-env-math-display)))
-               (env-beg (ignore-errors (save-excursion (change-env--find-matching-begin)
-                                                       (point)))))
+               (env-beg (ignore-errors (save-excursion
+                                         (change-env--find-matching-begin)
+                                         (point)))))
     (cond
      ;; Possibly fancy math environment.
      ((and math-beg env-beg)
@@ -176,7 +181,7 @@ See `change-env--find-matching-begin' and
           (cons math-sym env-beg)
         (unless in-display
           (error "Not in a display math environment"))
-        `(math . ,math-beg)))
+        (cons :math math-beg)))
      ;; Other non-math environment.
      (env-beg (goto-char env-beg)
               (search-forward "{" (point-at-eol))
@@ -184,7 +189,7 @@ See `change-env--find-matching-begin' and
      ;; Display math.
      (math-beg (unless in-display
                  (error "Not in a display math environment"))
-               `(math . ,math-beg))
+               (cons :math math-beg))
      (t (error "Not in any environment")))))
 
 ;;;; Labels
@@ -201,11 +206,11 @@ whitespace) from the string."
                 "[ \t\n\r]+"
                 ""
                 (buffer-substring-no-properties (mark) (point)))))
-    (save-excursion
+    (save-mark-and-excursion
       (pcase-let ((`(,env . ,beg) (change-env--closest-env))
                   (`(,open . ,close) change-env-math-display))
         (sxhash
-         (if (equal env 'math)
+         (if (equal env :math)
              ;; Display math
              (get-env #'(lambda ()
                           (goto-char beg)
@@ -246,7 +251,8 @@ If NEW-ENV is not given, delete (and save) the label instead."
                    (project-query-replace-regexp old new))))
       (if (goto-label?)
           (let ((label (get-label-text)))
-            (if (and old-lbl new-lbl)   ; replace old label with new one
+            (if (and old-lbl new-lbl)
+                ;; Replace old label with new one.
                 (progn
                   (delete-char (length old-lbl))
                   (insert new-lbl)
@@ -293,7 +299,7 @@ delimiters, as indicated by the optional arguments BEG and END."
     (push-mark)
     (pcase-let ((`(,env . ,beg) (change-env--closest-env))
                 (`(,open . ,close) change-env-math-display))
-      (if (equal env 'math)             ; display math
+      (if (equal env :math)             ; display math
           (delete-env beg
                       #'(lambda () (search-forward close))
                       #'(lambda () (+ (point) (length open)))
@@ -324,7 +330,7 @@ also act on display math environments."
       (when (null entry)
         (LaTeX-add-environments (list new-env)))
       (save-mark-and-excursion
-        (if (equal old-env 'math)       ; in a display math environment
+        (if (equal old-env :math)       ; in a display math environment
             (change-env--change (concat "\\begin{" new-env "}")
                                 (concat "\\end{"   new-env "}"))
           (LaTeX-modify-environment new-env))
