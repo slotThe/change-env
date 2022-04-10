@@ -116,17 +116,16 @@ Associated to each is the respective content of the latter.")
   "Return the label prefix for ENV."
   (alist-get env change-env-labels nil nil 'string=))
 
-;;;###autoload
-(defun change-env ()
-  "Change a LaTeX environment.
-When inside an environment or display math, execute an action as
-specified by `change-env-options'."
-  (interactive)
-  (let ((key (read-key (change-env--prompt))))
-    (funcall (cadr (alist-get key change-env-options)))))
+;;;; Utility
+
+(defun change-env--delete-line ()
+  "Delete the current line."
+  (delete-region (progn (beginning-of-line) (point))
+                 (progn (forward-line 1)    (point))))
+
 
 (defun change-env--prompt ()
-  "How to show options to the user."
+  "How to prompt the user for options."
   (mapconcat (pcase-lambda (`(,key ,label _))
                (format "[%s] %s"
                        (propertize (single-key-description key) 'face 'bold)
@@ -134,13 +133,15 @@ specified by `change-env-options'."
              change-env-options
              " "))
 
-(defun change-env-find-matching-begin ()
+;;;; Finding environments
+
+(defun change-env--find-matching-begin ()
   "Find the beginning of the current environment.
 Like `LaTeX-find-matching-begin', but take care of corner cases
 like being at the very beginning/end of the current environment."
   (change-env--find-match 'LaTeX-find-matching-begin))
 
-(defun change-env-find-matching-end ()
+(defun change-env--find-matching-end ()
   "Find the end of the current environment.
 Like `LaTeX-find-matching-end', but take care of corner cases
 like being at the very beginning/end of the current environment."
@@ -148,16 +149,42 @@ like being at the very beginning/end of the current environment."
 
 (defun change-env--find-match (find-match)
   "Find match according to FIND-MATCH.
-See `change-env-find-matching-begin' and
-`change-env-find-matching-end' for documentation."
+See `change-env--find-matching-begin' and
+`change-env--find-matching-end' for documentation."
   (let ((boi (save-excursion (LaTeX-back-to-indentation) (point))))
     (cond ((equal (point) boi) (forward-char))
           ((point-at-eol)      (backward-char)))
     (funcall find-match)))
 
+(defun change-env--closest-env ()
+  "Find the starting position of the closest environment."
+  (pcase-let* ((`(,math-sym . ,math-beg) (and (texmathp) texmathp-why))
+               (in-display (equal math-sym (car change-env-display)))
+               (env-beg (ignore-errors (save-excursion (change-env--find-matching-begin)
+                                                       (point)))))
+    (cond
+     ;; Possibly fancy math environment.
+     ((and math-beg env-beg)
+      (if (>= env-beg math-beg)         ; prefer inner
+          (cons math-sym env-beg)
+        (unless in-display
+          (error "Not in a display math environment"))
+        `(math . ,math-beg)))
+     ;; Other non-math environment.
+     (env-beg (goto-char env-beg)
+              (search-forward "{" (point-at-eol))
+              (cons (current-word) env-beg))
+     ;; Display math.
+     (math-beg (unless in-display
+                 (error "Not in a display math environment"))
+               `(math . ,math-beg))
+     (t (error "Not in any environment")))))
+
+;;;; Labels
+
 (defun change-env--env->hash ()
   "Get the hash of the contents in the current environment.
-Before hashing, strip all non essential characters (i.e.,
+Before hashing, strip all non essential characters (i.e., all
 whitespace) from the string."
   (cl-flet* ((get-env (goto-beg goto-end)
                (funcall goto-beg)
@@ -181,56 +208,17 @@ whitespace) from the string."
                           (backward-char (length close))))
            ;; Proper environment
            (get-env #'(lambda ()
-                        (change-env-find-matching-begin)
+                        (change-env--find-matching-begin)
                         (forward-line))
                     #'(lambda ()
-                        (change-env-find-matching-end)
+                        (change-env--find-matching-end)
                         (forward-line -1)
                         (end-of-line)))))))))
-
-(defun change-env--change (&optional beg end)
-  "Change an environment.
-Delete the old one, and possibly insert new beginning and end
-delimiters, as indicated by the optional arguments BEG and END."
-  (cl-flet* ((delete-env (env-begin find-end open-end close-beg)
-               ;; delete beginning, possibly insert a new one
-               (goto-char env-begin)
-               (if (not beg)
-                   (change-env--delete-line)
-                 (delete-region (point) (funcall open-end))
-                 (insert beg))
-               ;; delete end, possibly insert a new one
-               (funcall find-end)
-               (if (not end)
-                   (change-env--delete-line)
-                 (delete-region (funcall close-beg) (point))
-                 (insert end))))
-    (push-mark)
-    (pcase-let ((`(,env . ,beg) (change-env--closest-env))
-                (`(,open . ,close) change-env-display))
-      (if (equal env 'math)             ; display math
-          (delete-env beg
-                      #'(lambda () (search-forward close))
-                      #'(lambda () (+ (point) (length open)))
-                      #'(lambda () (- (point) (length close))))
-        (delete-env beg
-                    #'change-env-find-matching-end
-                    #'(lambda () (save-excursion (end-of-line) (point)))
-                    #'(lambda () (save-excursion (back-to-indentation) (point))))))
-    (setq mark-active t)
-    (indent-region (mark) (point))))
-
-(defun change-env--to-display-math ()
-  "Transform an environment to display math."
-  (save-mark-and-excursion
-    (change-env--change-label (car (change-env--closest-env)))
-    (change-env--change (car change-env-display)
-                        (cdr change-env-display))))
 
 (defun change-env--change-label (old-env &optional new-env)
   "Change the label for OLD-ENV to the one for NEW-ENV.
 If NEW-ENV is not given, delete (and save) the label instead."
-  (change-env-find-matching-begin)
+  (change-env--find-matching-begin)
   (let* ((orig-point (point))
          (old-lbl (change-env--get-labels old-env))
          (new-lbl (change-env--get-labels new-env)))
@@ -265,9 +253,50 @@ If NEW-ENV is not given, delete (and save) the label instead."
         ;; No label found -> check if we can restore something.
         (let ((label (gethash (change-env--env->hash) change-env--deleted-labels)))
           (when (and new-lbl label)
-            (change-env-find-matching-begin)
+            (change-env--find-matching-begin)
             (end-of-line)
             (insert (concat " \\label{" new-lbl label "}"))))))))
+
+;;;; Changing the actual environment
+
+(defun change-env--to-display-math ()
+  "Transform an environment to display math."
+  (save-mark-and-excursion
+    (change-env--change-label (car (change-env--closest-env)))
+    (change-env--change (car change-env-display)
+                        (cdr change-env-display))))
+
+(defun change-env--change (&optional beg end)
+  "Change an environment.
+Delete the old one, and possibly insert new beginning and end
+delimiters, as indicated by the optional arguments BEG and END."
+  (cl-flet* ((delete-env (env-begin find-end open-end close-beg)
+               ;; delete beginning, possibly insert a new one
+               (goto-char env-begin)
+               (if (not beg)
+                   (change-env--delete-line)
+                 (delete-region (point) (funcall open-end))
+                 (insert beg))
+               ;; delete end, possibly insert a new one
+               (funcall find-end)
+               (if (not end)
+                   (change-env--delete-line)
+                 (delete-region (funcall close-beg) (point))
+                 (insert end))))
+    (push-mark)
+    (pcase-let ((`(,env . ,beg) (change-env--closest-env))
+                (`(,open . ,close) change-env-display))
+      (if (equal env 'math)             ; display math
+          (delete-env beg
+                      #'(lambda () (search-forward close))
+                      #'(lambda () (+ (point) (length open)))
+                      #'(lambda () (- (point) (length close))))
+        (delete-env beg
+                    #'change-env--find-matching-end
+                    #'(lambda () (save-excursion (end-of-line) (point)))
+                    #'(lambda () (save-excursion (back-to-indentation) (point))))))
+    (setq mark-active t)
+    (indent-region (mark) (point))))
 
 (defun change-env--modify ()
   "Modify a LaTeX environment.
@@ -294,34 +323,16 @@ also act on display math environments."
           (LaTeX-modify-environment new-env))
         (change-env--change-label old-env new-env)))))
 
-(defun change-env--closest-env ()
-  "Find the starting position of the closest environment."
-  (pcase-let* ((`(,math-sym . ,math-beg) (and (texmathp) texmathp-why))
-               (in-display (equal math-sym (car change-env-display)))
-               (env-beg (ignore-errors (save-excursion (change-env-find-matching-begin)
-                                                       (point)))))
-    (cond
-     ;; Possibly fancy math environment.
-     ((and math-beg env-beg)
-      (if (>= env-beg math-beg)         ; prefer inner
-          (cons math-sym env-beg)
-        (unless in-display
-          (error "Not in a display math environment"))
-        `(math . ,math-beg)))
-     ;; Other non-math environment.
-     (env-beg (goto-char env-beg)
-              (search-forward "{" (point-at-eol))
-              (cons (current-word) env-beg))
-     ;; Display math.
-     (math-beg (unless in-display
-                 (error "Not in a display math environment"))
-               `(math . ,math-beg))
-     (t (error "Not in any environment")))))
+;;;; User facing
 
-(defun change-env--delete-line ()
-  "Delete the current line."
-  (delete-region (progn (beginning-of-line) (point))
-                 (progn (forward-line 1)    (point))))
+;;;###autoload
+(defun change-env ()
+  "Change a LaTeX environment.
+When inside an environment or display math, execute an action as
+specified by `change-env-options'."
+  (interactive)
+  (let ((key (read-key (change-env--prompt))))
+    (funcall (cadr (alist-get key change-env-options)))))
 
 (provide 'change-env)
 ;;; change-env.el ends here
