@@ -39,11 +39,21 @@
 ;;   from inside an environments—pops up a list of possible actions, as
 ;;   defined by the `change-env-options' variable.
 ;;
+;; + Labels are changed/deleted in a previous way, with an option to
+;;   edit the respective label across the whole project; see below.
+;;   Also, deleted labels are stored for the current session (based on
+;;   the specific contents of the environment) and potentially restored
+;;   when switching from e.g. display math to an environment with an
+;;   associated label prefix in `change-env-labels'.
+;;
 ;; + What exactly we mean by "display math" is controlled by the
 ;;   `change-env-display' variable.
 ;;
 ;; + This package depends on AUCTeX—but you are already using that
 ;;   anyways.
+;;
+;; + If you're customizing `change-env-edit-project-labels', we also
+;;   depend on project.el, meaning Emacs 27.1 and up.
 
 ;;; Code:
 
