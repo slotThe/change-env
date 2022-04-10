@@ -140,13 +140,13 @@ Associated to each is the respective content of the latter.")
   "Find the beginning of the current environment.
 Like `LaTeX-find-matching-begin', but take care of corner cases
 like being at the very beginning/end of the current environment."
-  (change-env--find-match 'LaTeX-find-matching-begin))
+  (change-env--find-match #'LaTeX-find-matching-begin))
 
 (defun change-env--find-matching-end ()
   "Find the end of the current environment.
 Like `LaTeX-find-matching-end', but take care of corner cases
 like being at the very beginning/end of the current environment."
-  (change-env--find-match 'LaTeX-find-matching-end))
+  (change-env--find-match #'LaTeX-find-matching-end))
 
 (defun change-env--find-match (find-match)
   "Find match according to FIND-MATCH.
@@ -224,15 +224,13 @@ whitespace) from the string."
 (defun change-env--change-label (old-env &optional new-env)
   "Change the label for OLD-ENV to the one for NEW-ENV.
 If NEW-ENV is not given, delete (and save) the label instead."
-  (change-env--find-matching-begin)
-  (let* ((orig-point (point))
+  (let* ((beg (cdr (change-env--closest-env)))
          (old-lbl (change-env--get-labels old-env))
          (new-lbl (change-env--get-labels new-env)))
     (cl-flet* ((goto-label? ()
                  (search-forward "\\label{"
                                  (save-excursion (forward-line) (point-at-eol))
-                                 t)
-                 (not (eql orig-point (point))))
+                                 t))
                (get-label-text ()
                  (save-excursion
                    (forward-char (length old-lbl))
@@ -244,6 +242,7 @@ If NEW-ENV is not given, delete (and save) the label instead."
                  (when change-env-edit-labels-in-project
                    (ignore-errors       ; stop beeping!
                      (project-query-replace-regexp old new)))))
+      (goto-char beg)
       (if (goto-label?)
           (let ((label (get-label-text)))
             (if (and old-lbl new-lbl)
@@ -270,9 +269,10 @@ If NEW-ENV is not given, delete (and save) the label instead."
 (defun change-env--to-display-math ()
   "Transform an environment to display math."
   (save-mark-and-excursion
-    (change-env--change-label (car (change-env--closest-env)))
     (change-env--change (car change-env-math-display)
-                        (cdr change-env-math-display))))
+                        (cdr change-env-math-display)))
+  (save-mark-and-excursion
+    (change-env--change-label (car (change-env--closest-env)))))
 
 (defun change-env--change (beg end)
   "Change an environment.
@@ -297,9 +297,8 @@ delimiters, as indicated by the optional arguments BEG and END."
                       #'(lambda () (- (point) (length close))))
         (delete-env beg
                     #'change-env--find-matching-end
-                    #'(lambda () (save-excursion (end-of-line) (point)))
+                    #'(lambda () (save-excursion (search-forward "}") (point)))
                     #'(lambda () (save-excursion (back-to-indentation) (point))))))
-    (setq mark-active t)
     (indent-region (mark) (point))))
 
 (defun change-env--modify ()
