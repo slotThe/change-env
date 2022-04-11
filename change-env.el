@@ -252,11 +252,10 @@ If NEW-ENV is not given, delete (and save) the label instead."
                   (insert new-lbl)
                   (replace-label (concat old-lbl label) (concat new-lbl label)))
               ;; Only the old label exists: delete and save it.
-              (puthash (change-env--env->hash) ; key
-                       (get-label-text)        ; val
-                       change-env--deleted-labels)
-              (delete-region (- (point) (length "\\label{")) (point-at-eol))
-              (replace-label (concat "\\\\ref{" old-lbl label "}") "")))
+              (let ((val (get-label-text)))
+                (delete-region (- (point) (length "\\label{")) (point-at-eol))
+                (puthash (change-env--env->hash) val change-env--deleted-labels)
+                (replace-label (concat "\\\\ref{" old-lbl label "}") ""))))
         ;; No label found -> check if we can restore something.
         (let ((label (gethash (change-env--env->hash) change-env--deleted-labels)))
           (when (and new-lbl label)
@@ -268,11 +267,12 @@ If NEW-ENV is not given, delete (and save) the label instead."
 
 (defun change-env--to-display-math ()
   "Transform an environment to display math."
-  (save-mark-and-excursion
-    (change-env--change (car change-env-math-display)
-                        (cdr change-env-math-display)))
-  (save-mark-and-excursion
-    (change-env--change-label (car (change-env--closest-env)))))
+  (let ((env (car (change-env--closest-env))))
+    (save-mark-and-excursion
+      (change-env--change (car change-env-math-display)
+                          (cdr change-env-math-display)))
+    (save-mark-and-excursion
+      (change-env--change-label env))))
 
 (defun change-env--change (beg end)
   "Change an environment.
