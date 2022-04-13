@@ -224,8 +224,7 @@ whitespace) from the string."
 (defun change-env--change-label (old-env &optional new-env)
   "Change the label for OLD-ENV to the one for NEW-ENV.
 If NEW-ENV is not given, delete (and save) the label instead."
-  (let* ((beg (cdr (change-env--closest-env)))
-         (old-lbl (change-env--get-labels old-env))
+  (let* ((old-lbl (change-env--get-labels old-env))
          (new-lbl (change-env--get-labels new-env)))
     (cl-flet* ((goto-label? ()
                  (search-forward "\\label{"
@@ -242,7 +241,6 @@ If NEW-ENV is not given, delete (and save) the label instead."
                  (when change-env-edit-labels-in-project
                    (ignore-errors       ; stop beeping!
                      (project-query-replace-regexp old new)))))
-      (goto-char beg)
       (if (goto-label?)
           (let ((label (get-label-text)))
             (if (and old-lbl new-lbl)
@@ -267,11 +265,11 @@ If NEW-ENV is not given, delete (and save) the label instead."
 
 (defun change-env--to-display-math ()
   "Transform an environment to display math."
-  (let ((env (car (change-env--closest-env))))
-    (save-mark-and-excursion
+  (save-mark-and-excursion
+    (pcase-let ((`(,env . ,beg) (change-env--closest-env)))
       (change-env--change (car change-env-math-display)
-                          (cdr change-env-math-display)))
-    (save-mark-and-excursion
+                          (cdr change-env-math-display))
+      (goto-char beg)
       (change-env--change-label env))))
 
 (defun change-env--change (beg end)
@@ -315,8 +313,8 @@ also act on display math environments."
                                    nil 'LaTeX-environment-history default)))
     (unless (equal new-env default)
       (setq LaTeX-default-environment new-env))
-    (let ((entry (assoc new-env (LaTeX-environment-list)))
-          (old-env (car (change-env--closest-env))))
+    (pcase-let ((entry (assoc new-env (LaTeX-environment-list)))
+                (`(,old-env . ,old-beg) (change-env--closest-env)))
       (when (null entry)
         (LaTeX-add-environments (list new-env)))
       (save-mark-and-excursion
@@ -324,6 +322,7 @@ also act on display math environments."
             (change-env--change (concat "\\begin{" new-env "}")
                                 (concat "\\end{"   new-env "}"))
           (LaTeX-modify-environment new-env))
+        (goto-char old-beg)
         (change-env--change-label old-env new-env)))))
 
 ;;;; User facing
