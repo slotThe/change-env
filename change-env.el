@@ -92,7 +92,8 @@ Takes a list of three items; namely,
                                ("lemma"      . "lem:")
                                ("theorem"    . "thm:")
                                ("equation"   . "eq:" )
-                               ("corollary"  . "cor:"))
+                               ("corollary"  . "cor:")
+                               ("example"    . "ex:"))
   "Environments with their associated label prefixes.
 Given a cons cell (ENV . PRFX), the environment ENV should have
 an optional label \\label{PRFXname}, where name is the actual
