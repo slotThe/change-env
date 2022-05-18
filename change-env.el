@@ -105,7 +105,7 @@ name of the environment."
 
 (defcustom change-env-edit-labels-in-project nil
   "Whether to change labels after an edit.
-If this is customised to 't', whenever a label changes or is
+If this is customised to t, whenever a label changes or is
 deleted, an interactive `project-query-replace-regexp' session is
 started to (potentially) update the label name across the whole
 project."
