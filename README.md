@@ -67,9 +67,9 @@ from an `equation` environment to a `lemma`:
 
 ``` tex
 % BEFORE
-\begin{equation} \label{eq:test}
+\begin{theorem} \label{thm:test}
   hi!
-\end{equation}
+\end{theorem}
 
 % AFTER
 \begin{lemma} \label{lem:test}
