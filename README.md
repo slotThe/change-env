@@ -1,30 +1,31 @@
-# change-env
+# latex-change-env
 
 This package provides a way to modify LaTeX environments, as well as the
 display math mode (seeing it as an environment of sorts).  Thus,
 henceforth the world "environment" shall—in addition to
 \begin--\end-style environments—also refer to display math.
 
-To use this package, simply put `change-env.el` somewhere inside of your
-`load-path` and `require` it:
+To use this package, simply put `latex-change-env.el` somewhere inside
+of your `load-path` and `require` it:
 
 ``` emacs-lisp
   (with-eval-after-load 'latex
-    (require 'change-env)
-    (bind-key (kbd "C-c r") #'change-env LaTeX-mode-map))
+    (require 'latex-change-env)
+    (bind-key (kbd "C-c r") #'latex-change-env LaTeX-mode-map))
 ```
 
 or, using `use-package':
 
 ``` emacs-lisp
-  (use-package change-env
+  (use-package latex-change-env
     :after latex
-    :bind (:map LaTeX-mode-map ("C-c r" . change-env)))
+    :bind (:map LaTeX-mode-map ("C-c r" . latex-change-env)))
 ```
 
-The entry point is the `change-env` function, which—when invoked from
-inside an environments—pops up a list of possible actions, as defined by
-the `change-env-options` variable.  By default, the possible options are
+The entry point is the `latex-change-env` function, which—when invoked
+from inside an environments—pops up a list of possible actions, as
+defined by the `latex-change-env-options` variable.  By default, the
+possible options are
 
   - Delete the current environment.
 
@@ -39,12 +40,12 @@ The goal is to make switching to display math as prominent as possible.
 This fits quite well with the authors particular sensibilities.
 
 What exactly we mean by "display math" is controlled by the
-`change-env-display` variable.  By default, it is set to `\[...\]` style
-display math.  If the excellent [`math-delimiters` package] is also
-used, customizing it along the lines of
+`latex-change-env-display` variable.  By default, it is set to `\[...\]`
+style display math.  If the excellent [`math-delimiters` package] is
+also used, customizing it along the lines of
 
 ``` emacs-lisp
-  (setq change-env-display math-delimiters-display)
+  (setq latex-change-env-display math-delimiters-display)
 ```
 
 keeps consistency with that package.
@@ -56,13 +57,13 @@ AUCTeX—but you are already using that anyways.
 
 ## Labels
 
-There is primitive label handling incorporated in `change-env`; this is
-controlled by the `change-env-labels` variable.  It is an alist,
-containing environment names with their associated label prefix.  If an
-environment is switched to another one and both are present in the
+There is primitive label handling incorporated in `latex-change-env`;
+this is controlled by the `latex-change-env-labels` variable.  It is an
+alist, containing environment names with their associated label prefix.
+If an environment is switched to another one and both are present in the
 alist, the label will be renamed according to that scheme.  For
-example—using the default value of `change-env-labels`—switching from an
-`equation` environment to a `lemma`:
+example—using the default value of `latex-change-env-labels`—switching
+from an `equation` environment to a `lemma`:
 
 ``` tex
 % BEFORE
@@ -81,11 +82,11 @@ any of the `*`-type environments (`equation*`, `align*`, and the like).
 
 Further, if one deletes a label by switching to display math or an
 environment that does not have an associated label in
-`change-env-labels`, and later switches back to an environment that
-does, the label will be restored _if the contents of the environment
-didn't change_.
+`latex-change-env-labels`, and later switches back to an environment
+that does, the label will be restored _if the contents of the
+environment didn't change_.
 
 Lastly, when a label changes and the user has customised
-`change-env-edit-project-labels` to `t` then an interactive
+`latex-change-env-edit-project-labels` to `t` then an interactive
 `query-replace` session is started in the current project to replace any
 labels with their potentially updated version.
