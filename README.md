@@ -5,8 +5,28 @@ display math mode (seeing it as an environment of sorts).  Thus,
 henceforth the world "environment" shall—in addition to
 \begin--\end-style environments—also refer to display math.
 
-To use this package, simply put `latex-change-env.el` somewhere inside
-of your `load-path` and `require` it:
+## Installation
+
+### MELPA
+
+The package is on MELPA, so you can install it like any other package:
+
+        M-x package-install RET latex-change-env RET
+
+### Manual
+
+Put `latex-change-env.el` somewhere inside of your `load-path` and
+`require` it:
+
+``` emacs-lisp
+  (require 'latex-change-env)
+```
+
+## Configuration
+
+The entry point is the `latex-change-env` function, which—when invoked
+from inside an environments—pops up a list of possible actions, as
+defined by the `latex-change-env-options` variable.  For example:
 
 ``` emacs-lisp
   (with-eval-after-load 'latex
@@ -22,10 +42,7 @@ or, using `use-package':
     :bind (:map LaTeX-mode-map ("C-c r" . latex-change-env)))
 ```
 
-The entry point is the `latex-change-env` function, which—when invoked
-from inside an environments—pops up a list of possible actions, as
-defined by the `latex-change-env-options` variable.  By default, the
-possible options are
+By default, the default values of `latex-change-env-options` are
 
   - Delete the current environment.
 
@@ -55,7 +72,7 @@ AUCTeX—but you are already using that anyways.
 
 [`math-delimiters` package]: https://github.com/oantolin/math-delimiters
 
-## Labels
+### Labels
 
 There is primitive label handling incorporated in `latex-change-env`;
 this is controlled by the `latex-change-env-labels` variable.  It is an
