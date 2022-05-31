@@ -111,10 +111,9 @@ started to (potentially) update the label name across the whole
 project."
   :group 'latex-change-env
   :type 'boolean
-  :initialize (lambda (symbol exp)
-                (when exp
-                  (require 'project))
-                (custom-initialize-default symbol exp)))
+  :set (lambda (symbol value)
+         (when value (require 'project))
+         (custom-initialize-default symbol value)))
 
 (defvar latex-change-env--deleted-labels (make-hash-table)
   "Environments that used to have labels.
