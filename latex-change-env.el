@@ -246,28 +246,30 @@ If NEW-ENV is not given, delete (and save) the label instead."
                  (when latex-change-env-edit-labels-in-project
                    (ignore-errors       ; stop beeping!
                      (project-query-replace-regexp old new)))))
-      (if (goto-label?)
-          (let ((label (get-label-text)))
-            (if (and old-lbl new-lbl)
-                ;; Replace old label with new one.
-                (progn
-                  (delete-char (length old-lbl))
-                  (insert new-lbl)
-                  (replace-label (concat old-lbl label) (concat new-lbl label)))
-              ;; Only the old label exists: delete and save it.
-              (let ((val (get-label-text)))
-                (delete-region (- (point) (length "\\label{")) (point-at-eol))
-                (puthash (latex-change-env--env->hash)
-                         val
-                         latex-change-env--deleted-labels)
-                (replace-label (concat "\\\\ref{" old-lbl label "}") ""))))
+      (cond
+       ((goto-label?)
+        (let ((label (get-label-text)))
+          (if (and old-lbl new-lbl)
+              ;; Replace old label with new one.
+              (progn
+                (delete-char (length old-lbl))
+                (insert new-lbl)
+                (replace-label (concat old-lbl label) (concat new-lbl label)))
+            ;; Only the old label exists: delete and save it.
+            (let ((val (get-label-text)))
+              (delete-region (- (point) (length "\\label{")) (point-at-eol))
+              (puthash (latex-change-env--env->hash)
+                       val
+                       latex-change-env--deleted-labels)
+              (replace-label (concat "\\\\ref{" old-lbl label "}") "")))))
+       (new-lbl
         ;; No label found -> check if we can restore something.
         (let ((label (gethash (latex-change-env--env->hash)
                               latex-change-env--deleted-labels)))
           (when (and new-lbl label)
             (latex-change-env--find-matching-begin)
             (end-of-line)
-            (insert " \\label{" new-lbl label "}")))))))
+            (insert " \\label{" new-lbl label "}"))))))))
 
 ;;;; Changing the actual environment
 
