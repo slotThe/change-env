@@ -313,18 +313,21 @@ delimiters, as indicated by the optional arguments BEG and END."
                     (lambda () (save-excursion (back-to-indentation) (point))))))
     (indent-region (mark) (point))))
 
-(defun latex-change-env--modify ()
+(defun latex-change-env--modify (&optional new-env)
   "Modify a LaTeX environment.
 Most of the implementation stolen from `LaTeX-environment', just
-also act on display math environments."
+also act on display math environments.
+
+The optional argument NEW-ENV specifies an environment directly."
   (let* ((default (cond ((TeX-near-bobp) "document")
                         ((and LaTeX-default-document-environment
                               (string-equal (LaTeX-current-environment) "document"))
                          LaTeX-default-document-environment)
                         (t LaTeX-default-environment)))
-         (new-env (completing-read (concat "Environment type (default " default "): ")
-                                   (LaTeX-environment-list-filtered) nil nil
-                                   nil 'LaTeX-environment-history default)))
+         (new-env (or new-env
+                      (completing-read (concat "Environment type (default " default "): ")
+                                       (LaTeX-environment-list-filtered) nil nil
+                                       nil 'LaTeX-environment-history default))))
     (unless (equal new-env default)
       (setq LaTeX-default-environment new-env))
     (pcase-let ((entry (assoc new-env (LaTeX-environment-list)))
