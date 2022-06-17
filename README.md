@@ -42,6 +42,9 @@ or, using `use-package':
     :bind (:map LaTeX-mode-map ("C-c r" . latex-change-env)))
 ```
 
+There is also the option to cycle through arguments in
+`latex-change-env-cycle`.  This then depends on [`math-delimiters`].
+
 By default, the default values of `latex-change-env-options` are
 
   - Delete the current environment.
@@ -58,7 +61,7 @@ This fits quite well with the authors particular sensibilities.
 
 What exactly we mean by "display math" is controlled by the
 `latex-change-env-display` variable.  By default, it is set to `\[...\]`
-style display math.  If the excellent [`math-delimiters` package] is
+style display math.  If the excellent [`math-delimiters`] package is
 also used, customizing it along the lines of
 
 ``` emacs-lisp
@@ -70,7 +73,7 @@ keeps consistency with that package.
 This package is not compatible with plain tex, as it depends on
 AUCTeX—but you are already using that anyways.
 
-[`math-delimiters` package]: https://github.com/oantolin/math-delimiters
+[`math-delimiters`]: https://github.com/oantolin/math-delimiters
 
 ### Labels
 
