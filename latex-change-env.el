@@ -353,5 +353,54 @@ specified by `latex-change-env-options'."
   (let ((key (read-key (latex-change-env--prompt))))
     (funcall (cadr (alist-get key latex-change-env-options)))))
 
+;;;###autoload
+(defun latex-change-env-cycle (envs)
+  "Cycle through environments.
+ENVS is a list of environments to cycle through.  The special
+symbol `math' denotes a display math environment.
+
+This function heavily depends on the `math-delimiters'
+package[1].  If one is right at the end of a display or inline
+math environment, call `math-delimiters-insert' instead of
+cycling through environments.  The same is done when not inside
+any environment, which, for our definition of environment, also
+includes inline math.  As such, we only use
+`math-delimiters-{inline,display}' for figuring out your
+preferences, ignoring `latex-change-env-math-display'!.
+
+[1]: https://github.com/oantolin/math-delimiters"
+  (interactive)
+
+  (require 'math-delimiters)
+  (defvar math-delimiters-display)
+  (defvar math-delimiters-inline)
+
+  (setf envs (append envs (list (car envs))))
+  (pcase-let* ((env (car (or (ignore-errors (save-excursion
+                                              (latex-change-env--closest-env)))
+                             (and (texmathp) texmathp-why))))
+               (env-sym (intern (if (keywordp env)
+                                    (substring (symbol-name env) 1)
+                                  env)))
+               (`(,dopen . ,dclose) math-delimiters-display)
+               (`(,iopen . _) math-delimiters-inline))
+    (cl-flet ((change-real-env ()
+                (let ((new-env (cadr (memq env-sym envs))))
+                  (pcase new-env
+                    ('math (latex-change-env--to-display-math))
+                    (_     (latex-change-env--modify (symbol-name new-env)))))))
+      (cond
+       ((or (not env)                   ; not in a math env
+            (equal env iopen))          ; in inline math
+        (math-delimiters-insert))
+       ((equal env dopen)               ; in display math
+        (if (looking-back (regexp-quote dclose) (- (point) (length dclose)))
+            (math-delimiters-insert)
+          (change-real-env)))
+       ((and env (not (memq env-sym envs)))
+        (math-delimiters-insert))
+       (t
+        (change-real-env))))))
+
 (provide 'latex-change-env)
 ;;; latex-change-env.el ends here
