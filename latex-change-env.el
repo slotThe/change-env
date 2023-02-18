@@ -230,22 +230,24 @@ whitespace) from the string."
       (pcase-let ((`(,env . ,beg) (latex-change-env--closest-env))
                   (`(,open . ,close) latex-change-env-math-display))
         (sxhash
-         (if (equal env :display-math)
-             ;; Display math
-             (get-env (lambda ()
-                        (goto-char beg)
-                        (forward-char (length open)))
-                      (lambda ()
-                        (search-forward close)
-                        (backward-char (length close))))
-           ;; Proper environment
-           (get-env (lambda ()
-                      (latex-change-env--find-matching-begin)
-                      (forward-line))
-                    (lambda ()
-                      (latex-change-env--find-matching-end)
-                      (forward-line -1)
-                      (end-of-line)))))))))
+         (pcase env
+           (:display-math
+            (get-env (lambda ()
+                       (goto-char beg)
+                       (forward-char (length open)))
+                     (lambda ()
+                       (search-forward close)
+                       (backward-char (length close)))))
+           (:macro
+            (error "latex-change-env--env->hash: Encountered macro"))
+           (_
+            (get-env (lambda ()
+                       (latex-change-env--find-matching-begin)
+                       (forward-line))
+                     (lambda ()
+                       (latex-change-env--find-matching-end)
+                       (forward-line -1)
+                       (end-of-line))))))))))
 
 (defun latex-change-env--change-label (old-env &optional new-env)
   "Change the label for OLD-ENV to the one for NEW-ENV.
