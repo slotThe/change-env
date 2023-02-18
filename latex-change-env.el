@@ -417,8 +417,9 @@ The optional argument NEW-ENV specifies an environment directly."
 When inside an environment or display math, execute an action as
 specified by `latex-change-env-options'."
   (interactive)
-  (let ((key (read-key (latex-change-env--prompt))))
-    (funcall (cadr (alist-get key latex-change-env-options)))))
+  (when-let* ((key (read-key (latex-change-env--prompt)))
+              (fn (cadr (alist-get key latex-change-env-options))))
+    (funcall fn)))
 
 ;;;###autoload
 (defun latex-change-env-cycle (envs)
