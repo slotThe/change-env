@@ -84,6 +84,12 @@ Takes a list of three items; namely,
                   (string    :tag "Label")
                   (symbol    :tag "Command"))))
 
+(defcustom latex-change-env-math-inline '("$" . "$")
+  "Set the preferred style for inline math."
+  :group 'latex-change-env
+  :type '(choice (const :tag "Dollar" ("$"  . "$"))
+                 (const :tag "Parens" ("\\(" . "\\)"))))
+
 (defcustom latex-change-env-math-display '("\\[" . "\\]")
   "Set the preferred style for display math."
   :group 'latex-change-env
@@ -199,14 +205,12 @@ See `latex-change-env--find-matching-begin' and
 (defun latex-change-env--closest-env ()
   "Find the starting position of the closest environment.
 Returns a cons cell of the form (ENV . BEG), where ENV is either
-:display-math, :macro, or the name of an environment, and BEG is
-the respective starting position"
+:inline-math, :display-math, :macro, or the name of an
+environment, and BEG is the respective starting position"
   (cl-flet ((find-max (xs)
               (seq-reduce (lambda (acc it)
                             (if (car it)
-                                (if (>= (cadr acc) (cadr it))
-                                    acc
-                                  it)
+                                (if (>= (cadr acc) (cadr it)) acc it)
                               acc))
                           xs
                           (list :nothing (point-min)))))
@@ -229,6 +233,8 @@ the respective starting position"
         (pcase sym-name
           ((pred (equal (car latex-change-env-math-display)))
            (cons :display-math math-beg))
+          ((pred (equal (car latex-change-env-math-inline)))
+           (cons :inline-math math-beg))
           (:macro
            (cons :macro (1- (search-backward mac-name))))
           (:env
@@ -262,6 +268,8 @@ whitespace) from the string."
                   (`(,open . ,close) latex-change-env-math-display))
         (sxhash
          (pcase env
+           ((or :inline-math :macro)
+            (error (format "latex-change-env--env->hash: Encountered %s" env)))
            (:display-math
             (get-env (lambda ()
                        (goto-char beg)
@@ -269,8 +277,6 @@ whitespace) from the string."
                      (lambda ()
                        (search-forward close)
                        (backward-char (length close)))))
-           (:macro
-            (error "latex-change-env--env->hash: Encountered macro"))
            (_
             (get-env (lambda ()
                        (latex-change-env--find-matching-begin)
@@ -341,9 +347,8 @@ If NEW-ENV is not given, delete (and save) the label instead."
   "Change an environment.
 Delete the old one, and possibly insert new beginning and end
 delimiters, as indicated by the optional arguments BEG and END."
-  (cl-flet* ((delete-env (env-begin find-end open-end close-beg)
+  (cl-flet* ((delete-env (find-end open-end close-beg)
                ;; delete beginning, possibly insert a new one
-               (goto-char env-begin)
                (if (not beg)       ; do we want to just kill everything?
                    (latex-change-env--delete-line)
                  (delete-region (point) (funcall open-end))
@@ -353,26 +358,31 @@ delimiters, as indicated by the optional arguments BEG and END."
                (if (not end)       ; do we want to just kill everything?
                    (latex-change-env--delete-line)
                  (delete-region (funcall close-beg) (point))
-                 (insert end)))
-             (delete-macro (mac-beg)
-               (goto-char mac-beg)
-               (delete-region (point) (save-excursion (search-forward "{") (point)))
-               (when beg (insert beg "{"))
-               (search-forward "}")
-               (unless end (delete-char -1))))
+                 (insert end))))
     (push-mark)
     (pcase-let ((`(,env . ,env-beg) (latex-change-env--closest-env))
                 (`(,open . ,close) latex-change-env-math-display))
+      (goto-char env-beg)
       (pcase env
-        (:display-math (delete-env env-beg
-                                   (lambda () (search-forward close))
-                                   (lambda () (+ (point) (length open)))
-                                   (lambda () (- (point) (length close)))))
-        (:macro (delete-macro env-beg))
-        (_ (delete-env env-beg
-                       #'latex-change-env--find-matching-end
-                       (lambda () (save-excursion (search-forward "}") (point)))
-                       (lambda () (save-excursion (back-to-indentation) (point)))))))
+        (:inline-math
+         (delete-char (length (car latex-change-env-math-inline)))
+         (when beg (TeX-newline) (insert beg) (TeX-newline))
+         (search-forward (cdr latex-change-env-math-inline))
+         (delete-char (- (length (cdr latex-change-env-math-inline))))
+         (when end (TeX-newline) (insert end) (TeX-newline)))
+        (:display-math
+         (delete-env (lambda () (search-forward close))
+                     (lambda () (+ (point) (length open)))
+                     (lambda () (- (point) (length close)))))
+        (:macro
+         (delete-region (point) (save-excursion (search-forward "{") (point)))
+         (when beg (insert beg "{"))
+         (search-forward "}")
+         (unless end (delete-char -1)))
+        (_
+         (delete-env #'latex-change-env--find-matching-end
+                     (lambda () (save-excursion (search-forward "}") (point)))
+                     (lambda () (save-excursion (back-to-indentation) (point)))))))
     (indent-region (mark) (point))))
 
 (defun latex-change-env--modify (&optional new-env)
@@ -382,13 +392,13 @@ The optional argument NEW-ENV specifies an environment directly."
               (old-pt (point)))
     (save-mark-and-excursion
       (pcase old-env
-        (:display-math
+        ((or :inline-math :display-math)
          (let ((env (latex-change-env--prompt-env new-env)))
            (latex-change-env--change
             (concat "\\begin{" env "}")
             (concat "\\end{" env "}"))
            (goto-char old-beg)
-           (latex-change-env--change-label old-env new-env)))
+           (latex-change-env--change-label old-env env)))
         (:macro
          (let ((env (latex-change-env--prompt-macro new-env)))
            (latex-change-env--change (concat "\\" env) t)
@@ -414,7 +424,7 @@ specified by `latex-change-env-options'."
 (defun latex-change-env-cycle (envs)
   "Cycle through environments.
 ENVS is a list of environments to cycle through.  The special
-symbol `math' denotes a display math environment.
+symbol `display-math' denotes a display math environment.
 
 This function heavily depends on the `math-delimiters'
 package[1].  If one is right at the end of a display or inline
