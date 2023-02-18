@@ -290,6 +290,7 @@ If NEW-ENV is not given, delete (and save) the label instead."
           (when (and new-lbl label)
             (latex-change-env--find-matching-begin)
             (end-of-line)
+            (while (looking-back "\s" (pos-bol)) (delete-char -1))
             (insert " \\label{" new-lbl label "}"))))))))
 
 ;;;; Changing the actual environment
