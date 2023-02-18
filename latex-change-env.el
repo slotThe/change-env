@@ -90,13 +90,14 @@ Takes a list of three items; namely,
   :type '(choice (const :tag "Brackets" ("\\[" . "\\]"))
                  (const :tag "Dollars"  ("$$"  . "$$"))))
 
-(defcustom latex-change-env-labels '(("remark"     . "rem:")
-                               ("definition" . "def:")
-                               ("lemma"      . "lem:")
-                               ("theorem"    . "thm:")
-                               ("equation"   . "eq:" )
-                               ("corollary"  . "cor:")
-                               ("example"    . "ex:"))
+(defcustom latex-change-env-labels
+  '(("remark"     . "rem:")
+    ("definition" . "def:")
+    ("lemma"      . "lem:")
+    ("theorem"    . "thm:")
+    ("equation"   . "eq:" )
+    ("corollary"  . "cor:")
+    ("example"    . "ex:"))
   "Environments with their associated label prefixes.
 Given a cons cell (ENV . PRFX), the environment ENV should have
 an optional label \\label{PRFXname}, where name is the actual
@@ -141,6 +142,36 @@ Associated to each is the respective content of the latter.")
                        label))
              latex-change-env-options
              " "))
+
+(defun latex-change-env--prompt-env (&optional new-env)
+  "Prompt for an environment and return the result.
+Code mostly taken from `LaTeX-environment'."
+  (let* ((default (cond ((TeX-near-bobp) "document")
+                        ((and LaTeX-default-document-environment
+                              (string-equal (LaTeX-current-environment) "document"))
+                         LaTeX-default-document-environment)
+                        (t LaTeX-default-environment)))
+         (new-env (or new-env
+                      (completing-read (concat "Environment type (default " default "): ")
+                                       (LaTeX-environment-list-filtered) nil nil
+                                       nil 'LaTeX-environment-history default))))
+    (unless (equal new-env default)
+      (setq LaTeX-default-environment new-env))
+    (let ((entry (assoc new-env (LaTeX-environment-list))))
+      (when (null entry)
+        (LaTeX-add-environments (list new-env))))
+    new-env))
+
+(defun latex-change-env--prompt-macro (&optional new-macro)
+  "Prompt for a macro and return the result.
+Code mostly taken from `TeX-insert-macro'."
+  (let ((selection (or new-macro (completing-read
+                                  (concat "Macro (default " TeX-default-macro "): " TeX-esc)
+                                  (TeX--symbol-completion-table) nil nil nil
+                                  'TeX-macro-history TeX-default-macro))))
+    (when (called-interactively-p 'any)
+      (setq TeX-default-macro selection))
+    selection))
 
 ;;;; Finding environments
 
@@ -346,32 +377,27 @@ delimiters, as indicated by the optional arguments BEG and END."
 
 (defun latex-change-env--modify (&optional new-env)
   "Modify a LaTeX environment.
-Most of the implementation stolen from `LaTeX-environment', just
-also act on display math environments.
-
 The optional argument NEW-ENV specifies an environment directly."
-  (let* ((default (cond ((TeX-near-bobp) "document")
-                        ((and LaTeX-default-document-environment
-                              (string-equal (LaTeX-current-environment) "document"))
-                         LaTeX-default-document-environment)
-                        (t LaTeX-default-environment)))
-         (new-env (or new-env
-                      (completing-read (concat "Environment type (default " default "): ")
-                                       (LaTeX-environment-list-filtered) nil nil
-                                       nil 'LaTeX-environment-history default))))
-    (unless (equal new-env default)
-      (setq LaTeX-default-environment new-env))
-    (pcase-let ((entry (assoc new-env (LaTeX-environment-list)))
-                (`(,old-env . ,old-beg) (latex-change-env--closest-env)))
-      (when (null entry)
-        (LaTeX-add-environments (list new-env)))
-      (save-mark-and-excursion
-        (if (equal old-env :display-math)       ; in a display math environment
-            (latex-change-env--change (concat "\\begin{" new-env "}")
-                                      (concat "\\end{" new-env "}"))
-          (LaTeX-modify-environment new-env))
-        (goto-char old-beg)
-        (latex-change-env--change-label old-env new-env)))))
+  (pcase-let ((`(,old-env . ,old-beg) (latex-change-env--closest-env))
+              (old-pt (point)))
+    (save-mark-and-excursion
+      (pcase old-env
+        (:display-math
+         (let ((env (latex-change-env--prompt-env new-env)))
+           (latex-change-env--change
+            (concat "\\begin{" env "}")
+            (concat "\\end{" env "}"))
+           (goto-char old-beg)
+           (latex-change-env--change-label old-env new-env)))
+        (:macro
+         (let ((env (latex-change-env--prompt-macro new-env)))
+           (latex-change-env--change (concat "\\" env) t)
+           (goto-char old-pt)))
+        (_
+         (let ((env (latex-change-env--prompt-env new-env)))
+           (LaTeX-modify-environment env)
+           (goto-char old-beg)
+           (latex-change-env--change-label old-env env)))))))
 
 ;;;; User facing
 
