@@ -28,9 +28,9 @@
 ;;; Commentary:
 
 ;; This package provides a way to modify LaTeX environments, as well as
-;; the display math mode (seeing it as an environment of sorts).  Thus,
+;; the display maths mode (seeing it as an environment of sorts).  Thus,
 ;; henceforth the world "environment" shall—in addition to
-;; \begin--\end-style environments—also refer to display math.
+;; \begin--\end-style environments—also refer to display maths.
 ;;
 ;; Refer to the README for a full account of the package's
 ;; functionality, as well as how to install it.  Briefly:
@@ -46,10 +46,10 @@
 ;;   edit the respective label across the whole project; see below.
 ;;   Also, deleted labels are stored for the current session (based on
 ;;   the specific contents of the environment) and potentially restored
-;;   when switching from e.g. display math to an environment with an
+;;   when switching from e.g. display maths to an environment with an
 ;;   associated label prefix in `latex-change-env-labels'.
 ;;
-;; + What exactly we mean by "display math" is controlled by the
+;; + What exactly we mean by "display maths" is controlled by the
 ;;   `latex-change-env-math-display' variable.
 ;;
 ;; + This package depends on AUCTeX—but you are already using that
@@ -68,9 +68,9 @@
   :group 'tex)
 
 (defcustom latex-change-env-options
-  '((?k "Delete"       latex-change-env--change         )
-    (?d "Display Math" latex-change-env--to-display-math)
-    (?m "Modify"       latex-change-env--modify         ))
+  '((?k "Delete"        latex-change-env--change         )
+    (?d "Display Maths" latex-change-env--to-display-math)
+    (?m "Modify"        latex-change-env--modify         ))
   "Options for `latex-change-env'.
 Takes a list of three items; namely,
 
@@ -85,13 +85,13 @@ Takes a list of three items; namely,
                   (symbol    :tag "Command"))))
 
 (defcustom latex-change-env-math-inline '("$" . "$")
-  "Set the preferred style for inline math."
+  "Set the preferred style for inline maths."
   :group 'latex-change-env
   :type '(choice (const :tag "Dollar" ("$"  . "$"))
                  (const :tag "Parens" ("\\(" . "\\)"))))
 
 (defcustom latex-change-env-math-display '("\\[" . "\\]")
-  "Set the preferred style for display math."
+  "Set the preferred style for display maths."
   :group 'latex-change-env
   :type '(choice (const :tag "Brackets" ("\\[" . "\\]"))
                  (const :tag "Dollars"  ("$$"  . "$$"))))
@@ -214,13 +214,13 @@ Returns a list of the form (TYPE ENV BEG), where
     the name of the relevant macro/environment.
 
   - BEG is the respective starting position."
-  (cl-flet ((find-max (xs)
-              (seq-reduce (lambda (acc it)
-                            (if (car it)
-                                (if (>= (cadr acc) (cadr it)) acc it)
-                              acc))
-                          xs
-                          (list :nothing (point-min)))))
+  (cl-flet ((find-closest (xs)
+              (car (seq-reduce (lambda (acc it)
+                                 (if (car it)
+                                     (if (>= (cadr acc) (cadr it)) acc it)
+                                   acc))
+                               xs
+                               (list :nothing (point-min))))))
     (save-excursion
       (pcase-let* (;; Maths
                    (`(,math-sym . ,math-beg) (and (texmathp) texmathp-why))
@@ -248,8 +248,8 @@ Returns a list of the form (TYPE ENV BEG), where
              (if (equal env-name "document")
                  (error "Not touching `document' environment; aborting")
                `(:env ,env-name ,env-beg))))
-          (_                            ; math env
-           ;; XXX: Should we differentiate between math envs and
+          (_      ; maths env
+           ;; XXX: Should we differentiate between maths envs and
            ;;      "normal" ones?
            `(:env ,math-sym ,env-beg)))))))
 
@@ -341,7 +341,7 @@ If NEW-ENV is not given, delete (and save) the label instead."
 ;;;; Changing the actual environment
 
 (defun latex-change-env--to-display-math ()
-  "Transform an environment to display math."
+  "Transform an environment to display maths."
   (save-mark-and-excursion
     (pcase-let ((`(,env-type ,env-name ,beg) (latex-change-env--closest-env)))
       (pcase env-type
@@ -422,7 +422,7 @@ The optional argument NEW-ENV specifies an environment directly."
 ;;;###autoload
 (defun latex-change-env ()
   "Change a LaTeX environment.
-When inside an environment or display math, execute an action as
+When inside an environment or display maths, execute an action as
 specified by `latex-change-env-options'."
   (interactive)
   (when-let* ((key (read-key (latex-change-env--prompt)))
@@ -433,14 +433,14 @@ specified by `latex-change-env-options'."
 (defun latex-change-env-cycle (envs)
   "Cycle through environments.
 ENVS is a list of environments to cycle through.  The special
-symbol `display-math' denotes a display math environment.
+symbol `display-math' denotes a display maths environment.
 
 This function heavily depends on the `math-delimiters'
 package[1].  If one is right at the end of a display or inline
-math environment, call `math-delimiters-insert' instead of
+maths environment, call `math-delimiters-insert' instead of
 cycling through environments.  The same is done when not inside
 any environment, which, for our definition of environment, also
-includes inline math.  As such, we only use
+includes inline maths.  As such, we only use
 `math-delimiters-{inline,display}' for figuring out your
 preferences, ignoring `latex-change-env-math-display'!.
 
@@ -467,10 +467,10 @@ preferences, ignoring `latex-change-env-math-display'!.
                     ('display-math (latex-change-env--to-display-math))
                     (_             (latex-change-env--modify (symbol-name new-env)))))))
       (cond
-       ((or (not env)                   ; not in a math env
-            (equal env iopen))          ; in inline math
+       ((or (not env)                   ; not in a maths env
+            (equal env iopen))          ; in inline maths
         (math-delimiters-insert))
-       ((equal env dopen)               ; in display math
+       ((equal env dopen)               ; in display maths
         (if (looking-back (regexp-quote dclose) (- (point) (length dclose)))
             (math-delimiters-insert)
           (change-real-env)))
