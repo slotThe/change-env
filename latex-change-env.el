@@ -449,10 +449,12 @@ preferences, ignoring `latex-change-env-math-display'!.
   (pcase-let* ((env (car (or (ignore-errors (save-excursion
                                               (latex-change-env--closest-env)))
                              (and (texmathp) texmathp-why))))
-               (env-sym (when env
-                          (intern (if (keywordp env)
-                                      (substring (symbol-name env) 1)
-                                    env))))
+               (env-sym (pcase env
+                          (:macro (intern (car (LaTeX-what-macro))))
+                          ('nil nil)
+                          (_ (intern (if (keywordp env)
+                                         (substring (symbol-name env) 1)
+                                       env)))))
                (`(,dopen . ,dclose) math-delimiters-display)
                (`(,iopen . _) math-delimiters-inline))
     (cl-flet ((change-real-env ()
