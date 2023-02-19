@@ -204,9 +204,14 @@ See `latex-change-env--find-matching-begin' and
 
 (defun latex-change-env--closest-env ()
   "Find the starting position of the closest environment.
-Returns a cons cell of the form (ENV . BEG), where ENV is either
-:inline-math, :display-math, :macro, or the name of an
-environment, and BEG is the respective starting position"
+Returns a list of the form '(TYPE ENV BEG), where
+
+  - TYPE is one of :inline-math, :display-math, :macro, or :env.
+
+  - ENV is the starting delimiter of the inline/display maths, or
+    the name of the relevant macro/environment.
+
+  - BEG is the respective starting position."
   (cl-flet ((find-max (xs)
               (seq-reduce (lambda (acc it)
                             (if (car it)
@@ -231,23 +236,25 @@ environment, and BEG is the respective starting position"
                                                         (,math-sym ,math-beg)
                                                         (:env      ,env-beg)))))
         (pcase sym-name
+          (:nothing
+           (error "latex-change-env--closest-env: Not in any environment"))
           ((pred (equal (car latex-change-env-math-display)))
-           (cons :display-math math-beg))
+           `(:display-math ,(car latex-change-env-math-display) ,math-beg))
           ((pred (equal (car latex-change-env-math-inline)))
-           (cons :inline-math math-beg))
+           `(:inline-math ,(car latex-change-env-math-inline) ,math-beg))
           (:macro
-           (cons :macro (1- (search-backward mac-name))))
+           `(:macro ,mac-name ,(1- (search-backward mac-name))))
           (:env
            (let ((env-name (progn (goto-char env-beg)
                                   (search-forward "{" (point-at-eol))
                                   (current-word))))
              (if (equal env-name "document")
                  (error "Not touching `document' environment; aborting")
-               (cons env-name env-beg))))
-          (:nothing
-           (error "latex-change-env--closest-env: Not in any environment"))
+               `(:env ,env-name ,env-beg))))
           (_                            ; math env
-           (cons math-sym env-beg)))))))
+           ;; XXX: Should we differentiate between math envs and
+           ;;      "normal" ones?
+           `(:env ,math-sym ,env-beg)))))))
 
 ;;;; Labels
 
@@ -264,20 +271,22 @@ whitespace) from the string."
                 ""
                 (buffer-substring-no-properties (mark) (point)))))
     (save-mark-and-excursion
-      (pcase-let ((`(,env . ,beg) (latex-change-env--closest-env))
+      (pcase-let ((`(,env-type ,env-name ,beg) (latex-change-env--closest-env))
                   (`(,open . ,close) latex-change-env-math-display))
         (sxhash
-         (pcase env
+         (pcase env-type
            ((or :inline-math :macro)
-            (error (format "latex-change-env--env->hash: Encountered %s" env)))
+            (error (format "latex-change-env--env->hash: Encountered %s" env-name)))
            (:display-math
             (get-env (lambda ()
                        (goto-char beg)
                        (forward-char (length open)))
                      (lambda ()
                        (search-forward close)
+                       ;; Assumption: the closing delimiter is the same
+                       ;; length as the opening one
                        (backward-char (length close)))))
-           (_
+           (:env
             (get-env (lambda ()
                        (latex-change-env--find-matching-begin)
                        (forward-line))
@@ -337,13 +346,13 @@ If NEW-ENV is not given, delete (and save) the label instead."
 (defun latex-change-env--to-display-math ()
   "Transform an environment to display math."
   (save-mark-and-excursion
-    (pcase-let ((`(,env . ,beg) (latex-change-env--closest-env)))
-      (pcase env
+    (pcase-let ((`(,env-type ,env-name ,beg) (latex-change-env--closest-env)))
+      (pcase env-type
         (:macro (error "Not changing from macro to display maths, aborting"))
         (_ (latex-change-env--change (car latex-change-env-math-display)
                                      (cdr latex-change-env-math-display))
            (goto-char beg)
-           (latex-change-env--change-label env))))))
+           (latex-change-env--change-label env-name))))))
 
 (defun latex-change-env--change (&optional beg end)
   "Change an environment.
@@ -362,15 +371,15 @@ delimiters, as indicated by the optional arguments BEG and END."
                  (delete-region (funcall close-beg) (point))
                  (insert end))))
     (push-mark)
-    (pcase-let ((`(,env . ,env-beg) (latex-change-env--closest-env))
+    (pcase-let ((`(,env-type ,env-name ,env-beg) (latex-change-env--closest-env))
                 (`(,open . ,close) latex-change-env-math-display))
       (goto-char env-beg)
-      (pcase env
+      (pcase env-type
         (:inline-math
-         (delete-char (length (car latex-change-env-math-inline)))
+         (delete-char (length env-name))
          (when beg (TeX-newline) (insert beg) (TeX-newline))
          (search-forward (cdr latex-change-env-math-inline))
-         (delete-char (- (length (cdr latex-change-env-math-inline))))
+         (delete-char (- (length env-name)))
          (when end (TeX-newline) (insert end) (TeX-newline)))
         (:display-math
          (delete-env (lambda () (search-forward close))
@@ -381,7 +390,7 @@ delimiters, as indicated by the optional arguments BEG and END."
          (when beg (insert beg "{"))
          (search-forward "}")
          (unless end (delete-char -1)))
-        (_
+        (:env
          (delete-env #'latex-change-env--find-matching-end
                      (lambda () (save-excursion (search-forward "}") (point)))
                      (lambda () (save-excursion (back-to-indentation) (point)))))))
@@ -390,26 +399,26 @@ delimiters, as indicated by the optional arguments BEG and END."
 (defun latex-change-env--modify (&optional new-env)
   "Modify a LaTeX environment.
 The optional argument NEW-ENV specifies an environment directly."
-  (pcase-let ((`(,old-env . ,old-beg) (latex-change-env--closest-env))
+  (pcase-let ((`(,old-env-type ,old-env-name ,old-beg) (latex-change-env--closest-env))
               (old-pt (point)))
     (save-mark-and-excursion
-      (pcase old-env
+      (pcase old-env-type
         ((or :inline-math :display-math)
          (let ((env (latex-change-env--prompt-env new-env)))
            (latex-change-env--change
             (concat "\\begin{" env "}")
             (concat "\\end{" env "}"))
            (goto-char old-beg)
-           (latex-change-env--change-label old-env env)))
+           (latex-change-env--change-label old-env-name env)))
         (:macro
          (let ((env (latex-change-env--prompt-macro new-env)))
            (latex-change-env--change (concat "\\" env) t)
            (goto-char old-pt)))
-        (_
+        (:env
          (let ((env (latex-change-env--prompt-env new-env)))
            (LaTeX-modify-environment env)
            (goto-char old-beg)
-           (latex-change-env--change-label old-env env)))))))
+           (latex-change-env--change-label old-env-name env)))))))
 
 ;;;; User facing
 
@@ -446,15 +455,13 @@ preferences, ignoring `latex-change-env-math-display'!.
   (defvar math-delimiters-inline)
 
   (setf envs (append envs (list (car envs))))
-  (pcase-let* ((env (car (or (ignore-errors (save-excursion
-                                              (latex-change-env--closest-env)))
-                             (and (texmathp) texmathp-why))))
+  (pcase-let* ((`(,env ,env-name _) (or (ignore-errors (save-excursion
+                                                         (latex-change-env--closest-env)))
+                                        `(:texmathp ,@(and (texmathp) texmathp-why))))
                (env-sym (pcase env
-                          (:macro (intern (car (LaTeX-what-macro))))
-                          ('nil nil)
-                          (_ (intern (if (keywordp env)
-                                         (substring (symbol-name env) 1)
-                                       env)))))
+                          ((or :display-math :inline-math) (intern (substring (symbol-name env) 1)))
+                          ((or 'nil :texmathp) nil)
+                          (_ (intern env-name))))
                (`(,dopen . ,dclose) math-delimiters-display)
                (`(,iopen . _) math-delimiters-inline))
     (cl-flet ((change-real-env ()
