@@ -338,10 +338,12 @@ If NEW-ENV is not given, delete (and save) the label instead."
   "Transform an environment to display math."
   (save-mark-and-excursion
     (pcase-let ((`(,env . ,beg) (latex-change-env--closest-env)))
-      (latex-change-env--change (car latex-change-env-math-display)
-                                (cdr latex-change-env-math-display))
-      (goto-char beg)
-      (latex-change-env--change-label env))))
+      (pcase env
+        (:macro (error "Not changing from macro to display maths, aborting"))
+        (_ (latex-change-env--change (car latex-change-env-math-display)
+                                     (cdr latex-change-env-math-display))
+           (goto-char beg)
+           (latex-change-env--change-label env))))))
 
 (defun latex-change-env--change (&optional beg end)
   "Change an environment.
