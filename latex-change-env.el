@@ -151,7 +151,8 @@ Associated to each is the respective content of the latter.")
 
 (defun latex-change-env--prompt-env (&optional new-env)
   "Prompt for an environment and return the result.
-Code mostly taken from `LaTeX-environment'."
+Optional argument NEW-ENV means use that environment.  Code
+mostly taken from `LaTeX-environment'."
   (let* ((default (cond ((TeX-near-bobp) "document")
                         ((and LaTeX-default-document-environment
                               (string-equal (LaTeX-current-environment) "document"))
@@ -170,7 +171,8 @@ Code mostly taken from `LaTeX-environment'."
 
 (defun latex-change-env--prompt-macro (&optional new-macro)
   "Prompt for a macro and return the result.
-Code mostly taken from `TeX-insert-macro'."
+Optional argument NEW-MACRO means use that macro.  Code mostly
+taken from `TeX-insert-macro'."
   (let ((selection (or new-macro (completing-read
                                   (concat "Macro (default " TeX-default-macro "): " TeX-esc)
                                   (TeX--symbol-completion-table) nil nil nil
@@ -199,12 +201,12 @@ See `latex-change-env--find-matching-begin' and
 `latex-change-env--find-matching-end' for documentation."
   (let ((boi (save-excursion (LaTeX-back-to-indentation) (point))))
     (cond ((equal (point) boi) (forward-char))
-          ((point-at-eol)      (backward-char)))
+          ((pos-eol)           (backward-char)))
     (funcall find-match)))
 
 (defun latex-change-env--closest-env ()
   "Find the starting position of the closest environment.
-Returns a list of the form '(TYPE ENV BEG), where
+Returns a list of the form (TYPE ENV BEG), where
 
   - TYPE is one of :inline-math, :display-math, :macro, or :env.
 
@@ -222,7 +224,6 @@ Returns a list of the form '(TYPE ENV BEG), where
     (save-excursion
       (pcase-let* (;; Maths
                    (`(,math-sym . ,math-beg) (and (texmathp) texmathp-why))
-                   (in-display (equal math-sym (car latex-change-env-math-display)))
                    ;; Macros
                    (`(,mac-name ,mac-or-env) (ignore-errors (LaTeX-what-macro)))
                    (mac-kw (when (eq 'mac mac-or-env) :macro))
@@ -230,12 +231,8 @@ Returns a list of the form '(TYPE ENV BEG), where
                    ;; Envs
                    (env-beg (ignore-errors (save-excursion
                                              (latex-change-env--find-matching-begin)
-                                             (point))))
-                   ;; Closest *thing*
-                   (`(,sym-name . ,min-beg) (find-max `((,mac-kw ,mac-beg)
-                                                        (,math-sym ,math-beg)
-                                                        (:env      ,env-beg)))))
-        (pcase sym-name
+                                             (point)))))
+        (pcase (find-closest `((,mac-kw ,mac-beg) (,math-sym ,math-beg) (:env ,env-beg)))
           (:nothing
            (error "latex-change-env--closest-env: Not in any environment"))
           ((pred (equal (car latex-change-env-math-display)))
@@ -246,7 +243,7 @@ Returns a list of the form '(TYPE ENV BEG), where
            `(:macro ,mac-name ,(1- (search-backward mac-name))))
           (:env
            (let ((env-name (progn (goto-char env-beg)
-                                  (search-forward "{" (point-at-eol))
+                                  (search-forward "{" (pos-eol))
                                   (current-word))))
              (if (equal env-name "document")
                  (error "Not touching `document' environment; aborting")
@@ -302,7 +299,7 @@ If NEW-ENV is not given, delete (and save) the label instead."
          (new-lbl (latex-change-env--get-labels new-env)))
     (cl-flet* ((goto-label? ()
                  (search-forward "\\label{"
-                                 (save-excursion (forward-line) (point-at-eol))
+                                 (save-excursion (forward-line) (pos-eol))
                                  t))
                (get-label-text ()
                  (save-excursion
@@ -326,7 +323,7 @@ If NEW-ENV is not given, delete (and save) the label instead."
                 (replace-label (concat old-lbl label) (concat new-lbl label)))
             ;; Only the old label exists: delete and save it.
             (let ((val (get-label-text)))
-              (delete-region (- (point) (length "\\label{")) (point-at-eol))
+              (delete-region (- (point) (length "\\label{")) (pos-eol))
               (puthash (latex-change-env--env->hash)
                        val
                        latex-change-env--deleted-labels)
