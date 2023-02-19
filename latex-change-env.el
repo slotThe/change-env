@@ -327,7 +327,7 @@ If NEW-ENV is not given, delete (and save) the label instead."
               (puthash (latex-change-env--env->hash)
                        val
                        latex-change-env--deleted-labels)
-              (replace-label (concat "\\\\ref{" old-lbl label "}") "")))))
+              (replace-label (concat "[~]\\\\\\(eqref\\|ref\\){" old-lbl label "}") "")))))
        (new-lbl
         ;; No label found -> check if we can restore something.
         (let ((label (gethash (latex-change-env--env->hash)
