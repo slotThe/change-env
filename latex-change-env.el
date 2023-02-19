@@ -4,7 +4,7 @@
 ;;
 ;; Author: Tony Zorman <soliditsallgood@mailbox.org>
 ;; Keywords: convenience, tex
-;; Version: 0.2
+;; Version: 0.3
 ;; Package-Requires: ((emacs "27.1") (auctex "13.1"))
 ;; Homepage: https://gitlab.com/slotThe/change-env
 ;;
@@ -27,10 +27,10 @@
 
 ;;; Commentary:
 
-;; This package provides a way to modify LaTeX environments, as well as
-;; the display maths mode (seeing it as an environment of sorts).  Thus,
-;; henceforth the world "environment" shall—in addition to
-;; \begin--\end-style environments—also refer to display maths.
+;; This package provides a way to modify LaTeX environments, macros, as
+;; well as inline and display maths mode (seeing them as an environment
+;; of sorts).  Thus, henceforth the world "environment" shall usually
+;; refer to all of these notions.
 ;;
 ;; Refer to the README for a full account of the package's
 ;; functionality, as well as how to install it.  Briefly:
@@ -49,8 +49,9 @@
 ;;   when switching from e.g. display maths to an environment with an
 ;;   associated label prefix in `latex-change-env-labels'.
 ;;
-;; + What exactly we mean by "display maths" is controlled by the
-;;   `latex-change-env-math-display' variable.
+;; + What exactly we mean by "inline" and "display maths" is controlled
+;;   by the `latex-change-env-math-inline' and
+;;   `latex-change-env-math-display' variables.
 ;;
 ;; + This package depends on AUCTeX—but you are already using that
 ;;   anyways.

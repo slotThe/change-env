@@ -1,9 +1,9 @@
 # latex-change-env
 
-This package provides a way to modify LaTeX environments, as well as the
-display math mode (seeing it as an environment of sorts).  Thus,
-henceforth the world "environment" shall—in addition to
-\begin--\end-style environments—also refer to display math.
+This package provides a way to modify LaTeX environments, macros, as
+well as inline and display maths mode (seeing them as an environment of
+sorts).  Thus, henceforth the world "environment" shall usually refer to
+all of these notions.
 
 ## Installation
 
@@ -11,7 +11,7 @@ henceforth the world "environment" shall—in addition to
 
 The package is on MELPA, so you can install it like any other package:
 
-        M-x package-install RET latex-change-env RET
+    M-x package-install RET latex-change-env RET
 
 ### Manual
 
@@ -26,7 +26,12 @@ Put `latex-change-env.el` somewhere inside of your `load-path` and
 
 The entry point is the `latex-change-env` function, which—when invoked
 from inside an environments—pops up a list of possible actions, as
-defined by the `latex-change-env-options` variable.  For example:
+defined by the `latex-change-env-options` variable.  There is also the
+option to cycle through arguments in `latex-change-env-cycle`.  This
+then depends on [`math-delimiters`] for convenient integration of
+math-style cycles.
+
+An example initial configuration of the package may look like:
 
 ``` emacs-lisp
   (with-eval-after-load 'latex
@@ -34,7 +39,7 @@ defined by the `latex-change-env-options` variable.  For example:
     (bind-key (kbd "C-c r") #'latex-change-env LaTeX-mode-map))
 ```
 
-or, using `use-package':
+or, using `use-package`:
 
 ``` emacs-lisp
   (use-package latex-change-env
@@ -42,10 +47,8 @@ or, using `use-package':
     :bind (:map LaTeX-mode-map ("C-c r" . latex-change-env)))
 ```
 
-There is also the option to cycle through arguments in
-`latex-change-env-cycle`.  This then depends on [`math-delimiters`].
-
-By default, the default values of `latex-change-env-options` are
+By default, the default values of the `latex-change-env-options`
+variable are
 
   - Delete the current environment.
 
@@ -59,13 +62,15 @@ the third option as well, it was a conscious decision not to do that.
 The goal is to make switching to display math as prominent as possible.
 This fits quite well with the authors particular sensibilities.
 
-What exactly we mean by "display math" is controlled by the
-`latex-change-env-display` variable.  By default, it is set to `\[...\]`
-style display math.  If the excellent [`math-delimiters`] package is
-also used, customizing it along the lines of
+What exactly we mean by "inline" and "display maths" is controlled by
+the `latex-change-env-math-{inline,display}` variables.  By default,
+these are set to `$…$` and `\[...\]` respectively.  If the excellent
+[`math-delimiters`] package is also used, customizing them along the
+lines of
 
 ``` emacs-lisp
-  (setq latex-change-env-display math-delimiters-display)
+  (setq latex-change-env-math-display math-delimiters-display)
+  (setq latex-change-env-math-inline  math-delimiters-inline )
 ```
 
 keeps consistency with that package.
