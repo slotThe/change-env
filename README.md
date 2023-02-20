@@ -2,8 +2,10 @@
 
 This package provides a way to modify LaTeX environments, macros, as
 well as inline and display maths mode (seeing them as an environment of
-sorts).  Thus, henceforth the world "environment" shall usually refer to
-all of these notions.
+sorts).  There exists a [blog post], which includes some moving pictures
+that showcase the functionality of this package.
+
+[blog post]: https://tony-zorman.com/posts/latex-change-env-0.3.html
 
 ## Installation
 
@@ -23,6 +25,10 @@ Put `latex-change-env.el` somewhere inside of your `load-path` and
 ```
 
 ## Configuration
+
+Note that, in the sequel, "environment" shall usually refer to LaTeX
+environments, macros, as well as inline and display maths mode—not just
+to LaTeX environments themselves.
 
 The entry point is the `latex-change-env` function, which—when invoked
 from inside an environments—pops up a list of possible actions, as
