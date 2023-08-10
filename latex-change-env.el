@@ -104,13 +104,14 @@ Takes a list of three items; namely,
                  (const :tag "Dollars"  ("$$"  . "$$"))))
 
 (defcustom latex-change-env-labels
-  '(("remark"     . "rem:")
-    ("definition" . "def:")
-    ("lemma"      . "lem:")
-    ("theorem"    . "thm:")
-    ("equation"   . "eq:" )
-    ("corollary"  . "cor:")
-    ("example"    . "ex:"))
+  '(("remark"      . "rem:" )
+    ("definition"  . "def:" )
+    ("lemma"       . "lem:" )
+    ("theorem"     . "thm:" )
+    ("equation"    . "eq:"  )
+    ("corollary"   . "cor:" )
+    ("example"     . "ex:"  )
+    ("proposition" . "prop:"))
   "Environments with their associated label prefixes.
 Given a cons cell (ENV . PRFX), the environment ENV should have
 an optional label \\label{PRFXname}, where name is the actual
