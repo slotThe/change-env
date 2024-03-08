@@ -224,7 +224,7 @@ Returns a list of the form (TYPE ENV BEG), where
   - BEG is the respective starting position."
   (cl-flet ((find-closest (xs)
               (car (seq-reduce (lambda (acc it)
-                                 (if (car it)
+                                 (if (cadr it)
                                      (if (>= (cadr acc) (cadr it)) acc it)
                                    acc))
                                xs
