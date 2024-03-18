@@ -157,6 +157,24 @@ Associated to each is the respective content of the latter.")
              latex-change-env-options
              " "))
 
+(defun latex-change-env--texmathp ()
+  "Determine if point is inside LaTeX math mode.
+This is a version of the `texmathp' function that works around Org's
+advice to it."
+  (if (eq major-mode 'org-mode)
+      (let ((org-advice? (advice-member-p 'org--math-p 'texmathp)))
+        ;; We need this until a new version of AUCTeX releases.
+        ;; See https://lists.gnu.org/archive/html/bug-auctex/2024-03/msg00085.html
+        (advice-add 'LaTeX-verbatim-p :override #'ignore)
+        ;; Unlikely to be removed from Org mode.
+        ;; See https://lists.gnu.org/archive/html/emacs-orgmode/2024-03/msg00239.html
+        (when org-advice? (advice-remove 'texmathp 'org--math-p))
+        (let ((res (texmathp)))
+          (advice-remove 'LaTeX-verbatim-p #'ignore)
+          (when org-advice? (advice-add 'texmathp :around 'org--math-p))
+          res))
+    (texmathp)))
+
 (defun latex-change-env--prompt-env (&optional new-env)
   "Prompt for an environment and return the result.
 Optional argument NEW-ENV means use that environment.  Code
@@ -231,7 +249,7 @@ Returns a list of the form (TYPE ENV BEG), where
                                (list :nothing (point-min))))))
     (save-excursion
       (pcase-let* (;; Maths
-                   (`(,math-sym . ,math-beg) (and (texmathp) texmathp-why))
+                   (`(,math-sym . ,math-beg) (and (latex-change-env--texmathp) texmathp-why))
                    ;; Macros
                    (`(,mac-name ,mac-or-env) (ignore-errors (LaTeX-what-macro)))
                    (mac-kw (when (eq 'mac mac-or-env) :macro))
@@ -463,11 +481,12 @@ preferences, ignoring `latex-change-env-math-display'!.
   (require 'math-delimiters)
   (defvar math-delimiters-display)
   (defvar math-delimiters-inline)
-
   (setf envs (append envs (list (car envs))))
+
   (pcase-let* ((`(,env ,env-name _) (or (ignore-errors (save-excursion
                                                          (latex-change-env--closest-env)))
-                                        `(:texmathp ,@(and (texmathp) texmathp-why))))
+                                        `(:texmathp ,@(and (latex-change-env--texmathp)
+                                                           texmathp-why))))
                (env-sym (pcase env
                           ((or :display-math :inline-math) (intern (substring (symbol-name env) 1)))
                           ((or 'nil :texmathp) nil)
