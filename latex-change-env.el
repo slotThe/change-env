@@ -1,12 +1,12 @@
 ;;; latex-change-env.el --- Change in and out of LaTeX environments -*- lexical-binding: t; -*-
 
-;; Copyright (C) 2021, 2022, 2023  Tony Zorman
+;; Copyright © 2021–2024 Tony Zorman
 ;;
 ;; Author: Tony Zorman <soliditsallgood@mailbox.org>
 ;; Keywords: convenience, tex
 ;; Version: 0.3
 ;; Package-Requires: ((emacs "27.1") (auctex "13.1"))
-;; Homepage: https://gitlab.com/slotThe/change-env
+;; Homepage: https://github.com/slotThe/change-env
 ;;
 ;; This file is NOT part of GNU Emacs.
 
